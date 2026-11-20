@@ -8,3 +8,4 @@
 # signalsmith-wasmbench is also excluded from the workspace (standalone perf harness); keep its build output
 # out of git — the 45 tracked target/ artifacts were committed by mistake.
 /signalsmith-wasmbench/target
+/fft-bench/target
