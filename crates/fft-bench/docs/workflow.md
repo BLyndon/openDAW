@@ -38,7 +38,7 @@ its own lockfile and `target/`.
 | Native benchmarks (≈ 4 min)   | `cargo bench`, filtered: `cargo bench -- forward/rfft` | ready   |
 | Node benchmarks and budget (≈ 30 s) | `cargo build --release --target wasm32-unknown-unknown`, then `node run.mjs`; filtered: `node run.mjs --sizes 1024 --options rfft,realfft` | ready |
 | Budget model tests            | `node --test budget.test.mjs`                         | ready   |
-| Binary size and `no_std` check| `size/size.sh`, `size/nostd-check.sh`                 | planned |
+| Binary size and `no_std` check (≈ 30 s) | `size/size.sh`, `size/nostd-check.sh`; `wasm-opt` required (`brew install binaryen`) | ready |
 
 Tests build with `opt-level = 3` (`[profile.test]`): the f64 reference DFT is O(n²) and too slow
 unoptimised at n = 16384.

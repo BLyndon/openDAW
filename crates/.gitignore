@@ -9,3 +9,4 @@
 # out of git — the 45 tracked target/ artifacts were committed by mistake.
 /signalsmith-wasmbench/target
 /fft-bench/target
+/fft-bench/size/target

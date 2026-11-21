@@ -130,9 +130,9 @@ Every signal at every size, N = 256, 512, …, 16384 (`signals.rs`).
 | Gate                       | Method | Status |
 |----------------------------|--------|--------|
 | No allocation after plan   | counting global allocator: zero allocations in `forward`/`inverse`, every option and size, no warm-up call (`tests/allocation.rs`) | done |
-| `no_std` (engine, talc)    | compile check of a `no_std` stub per option for `wasm32-unknown-unknown` | planned |
-| Binary size                | one small module per option, engine flags, `wasm-opt -Oz`, gzip; delta to an empty module | planned |
-| Dependency footprint       | `cargo tree`: crate count and names | planned |
+| `no_std` (engine, talc)    | link check: a `no_std` wasm stub per option with its own allocator and panic handler, as the engine has (`size/nostd-check.sh`). A dependency on `std` fails with a duplicate `panic_impl` | done |
+| Binary size                | one small module per option, engine flags (`+simd128`, opt-level 3, LTO, abort, strip), `wasm-opt -Oz` with the engine's feature set, gzip -9; delta to the matching empty stub (`size/size.sh`) | done |
+| Dependency footprint       | crates each stub pulls in (`cargo tree -e normal`), printed by `size/size.sh` | done |
 
 ## Not tested here
 

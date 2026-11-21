@@ -1,0 +1,12 @@
+# Size and no_std stubs: one tiny wasm module per option, built like the engine. A workspace of its own,
+# so its lockfile and target/ stay apart from the harness and the engine. Run size.sh / nostd-check.sh.
+[workspace]
+resolver = "2"
+members = ["stubs/*"]
+
+# As crates/Cargo.toml builds the engine's DSP crates: opt-level 3, LTO, abort, stripped.
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+strip = true

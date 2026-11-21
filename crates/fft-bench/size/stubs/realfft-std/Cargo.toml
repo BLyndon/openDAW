@@ -1,0 +1,11 @@
+[package]
+name = "size-realfft-std"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+realfft = {version = "3.5", features = ["wasm_simd"]}

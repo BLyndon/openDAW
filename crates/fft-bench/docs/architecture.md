@@ -11,6 +11,7 @@ How the harness is built and why. Parts marked *planned* do not exist yet.
 - [Accuracy data flow](#accuracy-data-flow)
 - [Build setup](#build-setup)
 - [Dependencies](#dependencies)
+- [Size and no_std stubs](#size-and-no_std-stubs)
 - [Planned parts](#planned-parts)
 
 ## Overview
@@ -172,8 +173,24 @@ magnitude steps; `metrics::contract_deviation` compares the bins with the analys
 | `libm`         | crates.io | twiddle and window tables (as the originals) |
 | `realfft`      | crates.io | `realfft` option; brings `rustfft`, `num-complex`, `num-traits`, `num-integer`, `strength_reduce`, `transpose`, `primal-check`, `autocfg` |
 
+## Size and no_std stubs
+
+`size/` is a cargo workspace of its own (own lockfile and `target/`), built only for `wasm32-unknown-unknown`.
+Each stub is one small module that calls one option the way its consumer does, at a runtime size.
+
+| Stub | What it links | Used for |
+|---|---|---|
+| `support` | a bump allocator and a panic handler, `no_std` | stands in for the engine's runtime (talc, its panic handler) |
+| `empty` | `support` only | size baseline of the `no_std` stubs |
+| `analyser`, `rfft`, `signalsmith` | `support` + the option's crate | `no_std` link check and size |
+| `realfft` | `support` + `realfft`, `no_std` | `no_std` link check (fails: `std` brings its own panic handler) |
+| `empty-std`, `realfft-std` | plain `std` modules | size of `realfft` where it can link |
+
+Build settings mirror the engine: `+simd128` (`size/.cargo/config.toml`), opt-level 3, LTO, abort, strip;
+`size.sh` then runs `wasm-opt -Oz` with the feature set of `build-wasm.sh` and gzip -9.
+
 ## Planned parts
 
 | Part                     | Purpose |
 |--------------------------|---------|
-| `size/`                  | per-option stub modules, `size.sh`, `nostd-check.sh` |
+| AudioWorklet page        | runs the same wasm module and `budget.mjs` in Chrome, Firefox and Safari; separate PR |
