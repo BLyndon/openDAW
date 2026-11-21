@@ -6,19 +6,13 @@ import os from "node:os"
 import crypto from "node:crypto"
 import {execFileSync} from "node:child_process"
 import {budgetReport, RENDER_QUANTUM_NS} from "./budget.mjs"
+import {CI_TARGET, MAX_BATCHES, median, percentile, throughput, WARM_UP_CALLS} from "./stats.mjs"
 
 const DEFAULT_MODULE = "target/wasm32-unknown-unknown/release/fft_bench.wasm"
 const SIZES = [256, 512, 1024, 2048, 4096, 8192, 16384]
-const WARM_UP_CALLS = 200
 const SINGLE_CALLS = 2000
 const STEP_REPETITIONS = 500
 const BATCH_NS = 10e6
-const MIN_BATCHES = 30
-const MAX_BATCHES = 120
-const EXTRA_BATCHES = 10
-const CI_TARGET = 0.05
-const BOOTSTRAP_SAMPLES = 1000
-const BOOTSTRAP_SEED = 0x12345678
 
 const argument = (name) => {
     const index = process.argv.indexOf(name)
@@ -38,31 +32,6 @@ const options = Array.from({length: wasm.option_count()},
     .filter(({name}) => optionFilter === undefined || optionFilter.includes(name))
 
 const now = () => Number(process.hrtime.bigint())
-const median = (values) => {
-    const sorted = [...values].sort((left, right) => left - right)
-    const middle = sorted.length >> 1
-    return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
-}
-const percentile = (values, fraction) => {
-    const sorted = [...values].sort((left, right) => left - right)
-    return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))]
-}
-
-// 95 % bootstrap confidence interval of the median, as a half-width relative to the median.
-// Seeded xorshift32, so a rerun on the same data gives the same interval.
-const ciHalfWidth = (values) => {
-    let state = BOOTSTRAP_SEED
-    const random = () => {
-        state ^= state << 13
-        state ^= state >>> 17
-        state ^= state << 5
-        return (state >>> 0) / 4294967296
-    }
-    const medians = Array.from({length: BOOTSTRAP_SAMPLES}, () =>
-        median(Array.from({length: values.length}, () => values[Math.floor(random() * values.length)])))
-    return (percentile(medians, 0.975) - percentile(medians, 0.025)) / 2 / median(values)
-}
-
 // The cost of one timer pair around an empty call; included in every single-call value below.
 const timerOverhead = () => {
     const samples = Array.from({length: SINGLE_CALLS}, () => {
@@ -85,32 +54,6 @@ const singleCall = (prepare, kernel) => {
         return now() - start
     })
     return {median: median(samples), p99: percentile(samples, 0.99)}
-}
-
-// Kernel cost from batches run inside wasm: each batch runs `count` calls once with and once without the
-// kernel; the difference per call removes the preparation and the timer. Batches are added until the
-// confidence interval is within the target or the cap is reached.
-const throughput = (run) => {
-    const timeBatch = (count, withKernel) => {
-        const start = now()
-        run(count, withKernel)
-        return now() - start
-    }
-    const estimate = timeBatch(WARM_UP_CALLS, 1) / WARM_UP_CALLS
-    const count = Math.max(1, Math.ceil(BATCH_NS / estimate))
-    const samples = []
-    const addBatches = (batches) => {
-        for (let batch = 0; batch < batches; batch++) {
-            const without = timeBatch(count, 0)
-            const both = timeBatch(count, 1)
-            samples.push((both - without) / count)
-        }
-    }
-    addBatches(MIN_BATCHES)
-    while (ciHalfWidth(samples) > CI_TARGET && samples.length < MAX_BATCHES) {
-        addBatches(EXTRA_BATCHES)
-    }
-    return {median: median(samples), ci: ciHalfWidth(samples), batches: samples.length}
 }
 
 // Time of each forward step of a stage-wise option, one step per call, as its consumer runs them.
@@ -154,10 +97,10 @@ for (const n of sizes) {
     for (const {option, name} of options) {
         wasm.setup(option, n)
         const result = {name, n}
-        result.forward = throughput(wasm.run_forward)
+        result.forward = throughput(wasm.run_forward, now, BATCH_NS)
         result.forwardCall = singleCall(wasm.prepare_forward, wasm.forward_kernel)
         if (wasm.has_inverse() === 1) {
-            result.inverse = throughput(wasm.run_inverse)
+            result.inverse = throughput(wasm.run_inverse, now, BATCH_NS)
             result.inverseCall = singleCall(wasm.prepare_inverse, wasm.inverse_kernel)
         }
         const steps = wasm.steps()
