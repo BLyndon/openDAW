@@ -1,6 +1,9 @@
 //! Benchmark and accuracy harness for real-input FFTs: the current scalar FFTs (`dsp::analyser`,
 //! `dsp::rfft`) and candidate replacements behind one interface. Standalone, not part of the engine build.
 
+// The verbatim copy in `options::reverted` imports `alloc::vec::Vec`, as in its no_std origin.
+extern crate alloc;
+
 pub mod contract;
 pub mod metrics;
 pub mod options;

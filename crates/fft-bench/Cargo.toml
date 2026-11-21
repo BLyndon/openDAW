@@ -10,6 +10,7 @@ crate-type = ["lib"]
 [dependencies]
 dsp = {path = "../dsp"}
 math = {path = "../math"}
+signalsmith = {path = "../signalsmith"}
 libm = "0.2"
 
 # The f64 reference DFT is O(n²): ~134 M multiply-adds per signal at n = 16384, too slow unoptimised.

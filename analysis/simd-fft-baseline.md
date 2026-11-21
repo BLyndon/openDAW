@@ -24,6 +24,7 @@ candidate. `realfft`/`rustfft` from the crate sources (realfft 3.5.1, rustfft 6.
 | Project policy           | homebrew                     | homebrew                     | homebrew                            | third-party (section 7)    |
 | License                  | AGPL-3.0                     | AGPL-3.0                     | AGPL-3.0                            | MIT / MIT OR Apache-2.0    |
 | Render-path consumers    | analyser editors, N = 1024   | Convolver, N = 256/2048/16384| time-stretch per region, N = 4096   | none                       |
+| Accuracy (worst rel. RMS)| 1.4e-7 (section 9)           | 1.5e-7 (section 9)           | not measured                        | not measured               |
 | Measured cost            | none                         | none                         | whole frame, see section 6          | none                       |
 
 Not on the render path: `stretch::fft` (analysis in the core worker) and `matchering::fft` (f64,
@@ -190,3 +191,47 @@ Further:
 - `future-plans/simd-fft.md` is outdated in: "the only FFT we have" (section 4), the consumers list
   (sections 4–5), the stage order (section 2), the library alternative (section 7), and it does not
   mention the reverted attempt (section 6).
+
+## 9. Accuracy of the baselines (measured)
+
+`crates/fft-bench` at `ccf110571`, native release build. Apple M1 (arm64), macOS 27.0.1,
+rustc 1.93.0. Measured 2026-11-21. Signals and metrics as in `analysis/simd-fft-harness-spec.md`.
+
+Worst value over the seven gated signals per size (the denormal signal is listed separately):
+
+| N     | Analyser rel. RMS | `rfft` rel. RMS | Analyser Parseval | `rfft` Parseval | `rfft` round trip | Denormal rel. RMS (analyser / `rfft`) |
+|-------|-------------------|-----------------|-------------------|-----------------|-------------------|---------------------------------------|
+| 256   | 1.1e-7            | 1.1e-7          | 9.0e-8            | 5.6e-8          | 4.5e-8            | 6.3e-7 / 4.4e-7                       |
+| 512   | 1.1e-7            | 1.2e-7          | 6.0e-8            | 7.0e-8          | 7.5e-8            | 5.4e-7 / 4.0e-7                       |
+| 1024  | 1.2e-7            | 1.4e-7          | 8.4e-8            | 8.8e-8          | 8.9e-8            | 5.4e-7 / 4.1e-7                       |
+| 2048  | 1.4e-7            | 1.4e-7          | 1.5e-7            | 1.5e-7          | 7.5e-8            | 5.8e-7 / 4.1e-7                       |
+| 4096  | 1.3e-7            | 1.4e-7          | 6.8e-8            | 6.2e-8          | 9.7e-8            | 5.9e-7 / 4.2e-7                       |
+| 8192  | 1.4e-7            | 1.4e-7          | 6.2e-8            | 9.0e-8          | 9.1e-8            | 5.8e-7 / 4.2e-7                       |
+| 16384 | 1.4e-7            | 1.5e-7          | 1.0e-7            | 9.5e-8          | 1.3e-7            | 5.8e-7 / 4.2e-7                       |
+
+Analyser output contract at N = 1024, `rfft` against the analyser copy:
+
+| Signal           | Deviation |
+|------------------|-----------|
+| impulse          | 0         |
+| DC               | 1.9e-8    |
+| sine on bin      | 4.5e-8    |
+| sine off bin     | 8.0e-8    |
+| white noise      | 1.8e-7    |
+| full-scale noise | 1.5e-7    |
+| full-scale sine  | 4.5e-8    |
+| denormal noise   | 0 (both bin sets all zero) |
+
+Takeaways:
+
+- **Both baselines work at f32 resolution** (ε ≈ 1.2e-7). Every plan target is met with about two
+  orders of magnitude to spare: round trip ≤ 1.3e-7 against 1e-5, contract ≤ 1.8e-7 against 1e-5.
+- **The "≤ 2× baseline" gate is tight in absolute terms.** A new kernel must stay at about
+  ≤ 3e-7 relative RMS. Reordered sums in a radix-4 or vectorised kernel are normally within that,
+  but this gate, not the plan's 1e-5, is the one that can actually fail.
+- **`dsp::rfft` meets the analyser contract.** The real-input trick costs the analyser no visible
+  accuracy (≤ 1.8e-7 against ε = 1e-5), so its ≈ 2× gain is available without SIMD.
+- **Denormal input zeroes the analyser bins.** `update()` squares `re`/`im` in f32 before the cast to
+  f64 (`analyser.rs` line 104): below ≈ 1e-19 the squares lose precision, below ≈ 4e-23 they are 0.
+  That is beyond −380 dB, so it has no audible or visible effect; it only explains the all-zero bins
+  in the contract row above.

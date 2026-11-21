@@ -1,10 +1,11 @@
-// The size-generic analyser copy must stand for `AudioAnalyser`: at the analyser's own size (1024) its
-// bins have to be bit-identical, not just close. Any drift in tables or operation order shows up here.
+// Copies must stand for their originals bit for bit, not just closely. The size-generic analyser copy
+// against `AudioAnalyser` at its own size (1024); the reverted SIMD variant against today's
+// `signalsmith::fft` (natively it runs the scalar `Simd4` fallback, which its commit states is bit-exact).
 
 use dsp::analyser::AudioAnalyser;
 use fft_bench::contract::{analyser_bins, analyser_window};
-use fft_bench::options::analyser::AnalyserFft;
-use fft_bench::signals::{impulse, sine_on_bin, white_noise, NOISE_AMPLITUDE};
+use fft_bench::options::{analyser::AnalyserFft, reverted::RevertedFft, signalsmith::SignalsmithFft};
+use fft_bench::signals::{impulse, sine_on_bin, white_noise, Signal, NOISE_AMPLITUDE};
 use fft_bench::{bins, RealFft, SIZES};
 
 // The analyser's fixed frame size (`dsp::analyser::FFT_SIZE`, crate-private).
@@ -62,4 +63,25 @@ fn impulse_gives_a_flat_unit_spectrum_at_every_size() {
 fn has_no_inverse() {
     let mut fft = AnalyserFft::new(N);
     assert!(!fft.inverse(&vec![0.0; bins(N)], &vec![0.0; bins(N)], &mut vec![0.0; N]));
+}
+
+#[test]
+fn reverted_variant_matches_signalsmith_bits_both_directions() {
+    for n in SIZES {
+        let (mut reverted, mut current) = (RevertedFft::new(n), SignalsmithFft::new(n));
+        for signal in Signal::ALL {
+            let input = signal.generate(n);
+            let (mut reverted_re, mut reverted_im) = (vec![0.0; bins(n)], vec![0.0; bins(n)]);
+            let (mut current_re, mut current_im) = (vec![0.0; bins(n)], vec![0.0; bins(n)]);
+            reverted.forward(&input, &mut reverted_re, &mut reverted_im);
+            current.forward(&input, &mut current_re, &mut current_im);
+            let bits = |values: &[f32]| values.iter().map(|value| value.to_bits()).collect::<Vec<u32>>();
+            assert_eq!(bits(&reverted_re), bits(&current_re), "n = {n}, {}: forward re", signal.name());
+            assert_eq!(bits(&reverted_im), bits(&current_im), "n = {n}, {}: forward im", signal.name());
+            let (mut reverted_out, mut current_out) = (vec![0.0; n], vec![0.0; n]);
+            reverted.inverse(&current_re, &current_im, &mut reverted_out);
+            current.inverse(&current_re, &current_im, &mut current_out);
+            assert_eq!(bits(&reverted_out), bits(&current_out), "n = {n}, {}: inverse", signal.name());
+        }
+    }
 }

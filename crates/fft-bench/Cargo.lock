@@ -17,6 +17,7 @@ dependencies = [
  "dsp",
  "libm",
  "math",
+ "signalsmith",
 ]
 
 [[package]]
@@ -27,6 +28,13 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "math"
+version = "0.0.0"
+dependencies = [
+ "libm",
+]
+
+[[package]]
+name = "signalsmith"
 version = "0.0.0"
 dependencies = [
  "libm",

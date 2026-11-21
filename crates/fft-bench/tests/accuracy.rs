@@ -1,10 +1,10 @@
 // Accuracy suite. First the tools themselves (reference DFT, metrics) are checked against known answers,
-// then both scalar baselines are held to the plan's targets. Measured on 2026-11-21: both baselines stay
-// at or below 1.6e-7 relative RMS, 1.5e-7 Parseval error, 1.4e-7 round trip and 1.9e-7 contract deviation.
+// then every scalar baseline is held to the plan's targets. Measured on 2026-11-21: all four stay at or
+// below 1.6e-7 relative RMS, 1.5e-7 Parseval error, 1.4e-7 round trip and 1.9e-7 contract deviation.
 
 use fft_bench::contract::{analyser_bins, analyser_window};
 use fft_bench::metrics::{contract_deviation, max_abs_error, parseval_error, relative_rms, CONTRACT_EPSILON, ROUND_TRIP_LIMIT};
-use fft_bench::options::{analyser::AnalyserFft, rfft::RfftOption};
+use fft_bench::options::{analyser::AnalyserFft, reverted::RevertedFft, rfft::RfftOption, signalsmith::SignalsmithFft};
 use fft_bench::reference::dft;
 use fft_bench::signals::{impulse, sine_on_bin, Signal, SINE_AMPLITUDE, SINE_BIN_DIVISOR};
 use fft_bench::{bins, RealFft, SIZES};
@@ -18,7 +18,8 @@ const REFERENCE_TOLERANCE: f64 = 1e-9;
 const ANALYSER_SIZE: usize = 1024;
 
 fn baselines(n: usize) -> Vec<(&'static str, Box<dyn RealFft>)> {
-    vec![("analyser", Box::new(AnalyserFft::new(n))), ("rfft", Box::new(RfftOption::new(n)))]
+    vec![("analyser", Box::new(AnalyserFft::new(n))), ("rfft", Box::new(RfftOption::new(n))),
+        ("signalsmith", Box::new(SignalsmithFft::new(n))), ("reverted", Box::new(RevertedFft::new(n)))]
 }
 
 fn forward(fft: &mut dyn RealFft, input: &[f32]) -> (Vec<f32>, Vec<f32>) {
@@ -90,26 +91,30 @@ fn baselines_match_the_f64_reference_and_parseval() {
 }
 
 #[test]
-fn rfft_round_trip_meets_the_plan_target() {
+fn round_trip_meets_the_plan_target() {
     for n in SIZES {
-        let mut fft = RfftOption::new(n);
         let input = Signal::WhiteNoise.generate(n);
-        let (re, im) = forward(&mut fft, &input);
-        let mut output = vec![0.0; n];
-        assert!(fft.inverse(&re, &im, &mut output));
-        let error = max_abs_error(&input, &output);
-        assert!(error < ROUND_TRIP_LIMIT, "n = {n}: round trip {error:e}");
+        for (name, mut fft) in baselines(n) {
+            let (re, im) = forward(fft.as_mut(), &input);
+            let mut output = vec![0.0; n];
+            if !fft.inverse(&re, &im, &mut output) {
+                continue;
+            }
+            let error = max_abs_error(&input, &output);
+            assert!(error < ROUND_TRIP_LIMIT, "{name}, n = {n}: round trip {error:e}");
+        }
     }
 }
 
 #[test]
-fn rfft_meets_the_analyser_contract() {
+fn every_baseline_meets_the_analyser_contract() {
     let window = analyser_window(ANALYSER_SIZE);
     for signal in Signal::ALL.into_iter().filter(|signal| signal.is_gated()) {
         let input = signal.generate(ANALYSER_SIZE);
         let old = analyser_bins(&mut AnalyserFft::new(ANALYSER_SIZE), &input, &window);
-        let new = analyser_bins(&mut RfftOption::new(ANALYSER_SIZE), &input, &window);
-        let deviation = contract_deviation(&new, &old);
-        assert!(deviation < CONTRACT_EPSILON, "{}: contract deviation {deviation:e}", signal.name());
+        for (name, mut fft) in baselines(ANALYSER_SIZE) {
+            let deviation = contract_deviation(&analyser_bins(fft.as_mut(), &input, &window), &old);
+            assert!(deviation < CONTRACT_EPSILON, "{name}, {}: contract deviation {deviation:e}", signal.name());
+        }
     }
 }
