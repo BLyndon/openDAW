@@ -38,4 +38,4 @@ cargo run --release --example report > report.md     # accuracy tables as Markdo
 | Wasm exports and Node runner, per-stage timing                    | done                 |
 | Budget-per-consumer report                                        | done                 |
 | Binary size and `no_std` checks                                   | done                 |
-| AudioWorklet page (Chrome, Firefox, Safari)                       | planned, separate PR |
+| Browser page (Chrome, Firefox, Safari): `node web/serve.mjs`      | done                 |

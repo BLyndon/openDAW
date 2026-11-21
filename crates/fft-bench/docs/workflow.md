@@ -13,7 +13,7 @@ flowchart TD
     D -- fails --> X[Fix or drop the option]
     D -- passes --> E[Native benchmarks<br/>development only]
     E --> F[Node, wasm32 + simd128<br/>preliminary]
-    F --> G[AudioWorklet in Chrome, Firefox, Safari<br/>the numbers that count]
+    F --> G[Browser page in Chrome, Firefox, Safari<br/>the numbers that count]
     G --> H[Budget per consumer]
     H --> I[Decision with the maintainer]
 ```
@@ -37,7 +37,8 @@ its own lockfile and `target/`.
 | Wasm build check              | `cargo check --target wasm32-unknown-unknown`         | ready   |
 | Native benchmarks (≈ 4 min)   | `cargo bench`, filtered: `cargo bench -- forward/rfft` | ready   |
 | Node benchmarks and budget (≈ 30 s) | `cargo build --release --target wasm32-unknown-unknown`, then `node run.mjs`; filtered: `node run.mjs --sizes 1024 --options rfft,realfft` | ready |
-| Budget model tests            | `node --test budget.test.mjs`                         | ready   |
+| Node module tests             | `node --test *.test.mjs web/*.test.mjs`               | ready   |
+| Browser page                  | `node web/serve.mjs`, then open `http://127.0.0.1:8080/` in each browser | ready |
 | Binary size and `no_std` check (≈ 30 s) | `size/size.sh`, `size/nostd-check.sh`; `wasm-opt` required (`brew install binaryen`) | ready |
 
 Tests build with `opt-level = 3` (`[profile.test]`): the f64 reference DFT is O(n²) and too slow
@@ -67,13 +68,16 @@ further changes (once those parts exist).
    sync and backup clients, chat, video calls); run on mains power with Low Power Mode off; build first
    and let the machine settle before measuring. A busy machine produced a false 45 % gap between two
    copies of the same code here; the real gap, measured quietly and alternating, was 15 %.
-3. **Environment:** native runs print it automatically (CPU, OS, `rustc`, build, `RUSTFLAGS`, git hash
-   with a `-dirty` flag, library versions). Add `node` and browser versions by hand where they apply.
+3. **Environment:** every runner prints it automatically: native (CPU, OS, `rustc`, build, `RUSTFLAGS`, git
+   hash with a `-dirty` flag, library versions), Node (runtime, module hash) and the browser page
+   (browser, timer tick, module hash).
 4. **Longer runs for numbers that count:** `cargo bench -- --measurement-time 10 --warm-up-time 3`.
    Take the median and the 95 % confidence interval; repeat noisy points until the half-width is ≤ 5 %.
 5. **Compare like with like:** two variants are compared in the same run, ideally alternating, never
    across runs taken under different conditions.
-6. **Browsers by hand where needed:** Playwright's WebKit is not Safari; Safari is run manually.
+6. **Browsers by hand:** the page runs in whatever browser opens it; Playwright's WebKit is not Safari, so
+   Safari is run manually. Keep the tab in front: the page marks a step "tab was hidden" when the browser
+   may have throttled it.
 7. **Store results outside the crate.** Measurements belong to the evaluation, not to the harness code.
 
 ## Rules while working on the harness

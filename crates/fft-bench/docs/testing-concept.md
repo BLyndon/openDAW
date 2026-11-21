@@ -97,7 +97,7 @@ Every signal at every size, N = 256, 512, …, 16384 (`signals.rs`).
 |---------------------------------|-----------------------------------------------------|------|--------|
 | Native                          | development only; `realfft` uses NEON/AVX there     | Criterion (`benches/fft.rs`) | done |
 | Node (wasm32 + simd128)         | fast iteration; preliminary                         | `run.mjs` | done |
-| AudioWorklet in Chrome, Firefox, Safari | the numbers that count; Node missed the slowdown behind the revert | browser page (separate PR) | planned |
+| Browser in Chrome, Firefox, Safari | the numbers that count; Node missed the slowdown behind the revert | `web/` page, timing in a Worker | done |
 
 - **What is timed:** each option's native call (`*_kernel`), never the adapter copies. Data is loaded
   before every call (`prepare_*`, untimed), because in-place kernels destroy their input.

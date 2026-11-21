@@ -27,8 +27,10 @@ differs (**If not**). Background on the method is in the
 | Node 24 or newer | `node --version` | — |
 | binaryen (`wasm-opt`) | `wasm-opt --version` | `brew install binaryen` |
 | gzip, git | present on macOS and Linux | — |
+| Chrome, Firefox, Safari | current releases, for step 7 | — |
 
-Time for a full run: about 25 minutes, most of it the native benchmarks in step 4.
+Time for a full run: about 25 minutes, most of it the native benchmarks in step 4, plus a few minutes
+per browser in step 7.
 
 All commands run from `crates/fft-bench` unless stated. Results go to a folder outside the crate, here
 `$RESULTS`, for example:
@@ -64,7 +66,7 @@ measured until this passes.
 
 ```sh
 cargo test
-node --test budget.test.mjs
+node --test *.test.mjs web/*.test.mjs
 ```
 
 **Expected:**
@@ -166,10 +168,34 @@ dependency started to need `std`; read its first error line in the table.
 
 **Purpose:** the timings that count, in the runtimes the engine actually runs in.
 
-Not available yet: the AudioWorklet page that runs the same wasm module and `budget.mjs` in Chrome,
-Firefox and Safari is planned as a separate PR. Until then, steps 4 and 5 are the only timings, and they
-are preliminary. When it exists: run Safari by hand (Playwright's WebKit is not Safari), and record
-browser name and version with every result.
+```sh
+node web/serve.mjs
+```
+
+Open `http://127.0.0.1:8080/` in Chrome, Firefox and Safari, one browser at a time, with the tab in front
+and nothing else running. The page leads through seven steps; each one unlocks the next. Run Safari by hand:
+Playwright's WebKit is not Safari.
+
+**Expected:**
+
+- Step 1 ✔: cross-origin isolated, timer tick ≤ 20 µs (Chrome shows 5 µs), SIMD128 available.
+- Step 2 ✔: every registered option listed; the module hash equals the `module` line in `node.md`.
+- Steps 3–5 ✔, or ⚠ for single points only; rerun those with their rerun button.
+- No "tab was hidden" remark in any step.
+- Step 7 downloads `browser-<browser>-<major version>.md`. Move it to `$RESULTS`.
+- A few minutes per browser, most of it in step 5.
+
+**If not:**
+
+- **Step 1 ✘** names the cause: not isolated (the page was not served by `web/serve.mjs`), a coarse
+  timer, or no SIMD128. Nothing can be measured until it passes.
+- **"module older than its sources"** in step 2: rebuild the wasm module, reload the page.
+- **"tab was hidden"**: the browser throttled the page while it was in the background, and timings run
+  2–3× slow. Run the step again with the tab in front.
+- **Many ⚠ points**: the machine is busy; step 1 of this runbook again.
+
+The page times in a Worker, not in an AudioWorklet: a worklet has no high-resolution clock. The numbers
+are the browser's wasm engine on a background thread, not the audio thread itself.
 
 ## 8. Wrap up
 
@@ -178,8 +204,8 @@ browser name and version with every result.
 1. **Check the headers.** Every result file starts with an environment table. The git hash must be the
    same everywhere and without `-dirty`.
 2. **Compare like with like.** Only compare numbers from the same run and the same platform.
-3. **Keep the raw files.** `$RESULTS` holds `accuracy.md`, `native.txt`, `node.md`, `size.md` and
-   `nostd.md`. Commit them with the analysis, not with the harness.
+3. **Keep the raw files.** `$RESULTS` holds `accuracy.md`, `native.txt`, `node.md`, `size.md`,
+   `nostd.md` and one `browser-*.md` per browser. Commit them with the analysis, not with the harness.
 4. **Note deviations.** Anything that did not look as described above goes next to the numbers.
 
 ## After adding an option
@@ -191,6 +217,7 @@ When the prototype or another kernel joins the registry (see
 |---|---|
 | Steps 2 and 3 | gates and accuracy for the new option |
 | Step 5 | its wasm timings and its row in the render budget |
+| Step 7 | its timings in the browsers; the page lists every registered option |
 | Step 6, after adding a stub to `size/stubs/` and to both scripts | its size and whether it links `no_std` |
 | Step 4 | only if its native numbers matter |
 
@@ -205,4 +232,7 @@ When the prototype or another kernel joins the registry (see
 | `could not find Cargo.toml` | shell is not in `crates/fft-bench` | `cd crates/fft-bench` |
 | First `cargo bench` takes minutes | Criterion and its dependencies are downloaded and built once | wait; later runs start immediately |
 | Numbers jump between runs | busy machine | step 1 again; compare only numbers from one run |
+| Browser page: step 1 ✘ "not cross-origin isolated" | page opened through another server or from a file | `node web/serve.mjs`, open the URL it prints |
+| Browser page: step 2 ⚠ "module older than its sources" | Rust sources changed after the last wasm build | `cargo build --release --target wasm32-unknown-unknown`, reload |
+| Browser page: port 8080 in use | another dev server runs there | `node web/serve.mjs --port 8090` |
 | `wasm-opt` rejects a module | its feature flags differ from the build | keep `size.sh`'s feature list equal to `build-wasm.sh` |

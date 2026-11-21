@@ -1,6 +1,6 @@
 # Architecture
 
-How the harness is built and why. Parts marked *planned* do not exist yet.
+How the harness is built and why.
 
 ## Contents
 
@@ -12,7 +12,7 @@ How the harness is built and why. Parts marked *planned* do not exist yet.
 - [Build setup](#build-setup)
 - [Dependencies](#dependencies)
 - [Size and no_std stubs](#size-and-no_std-stubs)
-- [Planned parts](#planned-parts)
+- [JavaScript runners and the browser page](#javascript-runners-and-the-browser-page)
 
 ## Overview
 
@@ -54,7 +54,7 @@ flowchart LR
             tests[tests/]
             report[examples/report]
             benches[benches/]
-            wasm[src/wasm.rs exports<br/>+ run.mjs + budget.mjs]
+            wasm[src/wasm.rs exports<br/>used by the JavaScript runners]
         end
     end
     reference --> metrics
@@ -109,8 +109,8 @@ pub trait RealFft {
 
 `options::ALL` lists every option once: name, role, whether it is a full complex transform (`complex`:
 one call can carry two real channels, which the budget model uses) and a `create` function pointer
-(`create::<T>`, no closures, so the list is a `const`). Tests, the report and the planned benchmarks
-iterate over it; a new option is measured everywhere by adding one entry.
+(`create::<T>`, no closures, so the list is a `const`). Tests, the report, the benchmarks and the wasm
+exports iterate over it; a new option is measured everywhere by adding one entry.
 
 | Role        | Options                                   | Treatment in tests |
 |-------------|-------------------------------------------|--------------------|
@@ -161,7 +161,7 @@ magnitude steps; `metrics::contract_deviation` compares the bins with the analys
 | `crate-type`      | `lib` + `cdylib` | the wasm32 build becomes a loadable module with the exports of `src/wasm.rs` |
 | `.cargo/config.toml` | `+simd128` for wasm32 | as the engine's wasm build; no `RUSTFLAGS` to remember |
 | `[profile.release]` | opt-level 3, LTO, `panic = "abort"` | as the engine builds its DSP crates |
-| wasm imports      | none | `WebAssembly.instantiate(bytes, {})` works in Node and in an AudioWorklet |
+| wasm imports      | none | `WebAssembly.instantiate(bytes, {})` works in Node and in a browser Worker |
 
 ## Dependencies
 
@@ -189,8 +189,74 @@ Each stub is one small module that calls one option the way its consumer does, a
 Build settings mirror the engine: `+simd128` (`size/.cargo/config.toml`), opt-level 3, LTO, abort, strip;
 `size.sh` then runs `wasm-opt -Oz` with the feature set of `build-wasm.sh` and gzip -9.
 
-## Planned parts
+## JavaScript runners and the browser page
 
-| Part                     | Purpose |
-|--------------------------|---------|
-| AudioWorklet page        | runs the same wasm module and `budget.mjs` in Chrome, Firefox and Safari; separate PR |
+The wasm module is driven from JavaScript twice: by `run.mjs` in Node and by the page in `web/`. Both share
+the statistics, the measurements, the Markdown tables and the budget model, so a browser report and
+`node.md` are built by the same code and compare section by section.
+
+**How to read the diagram:** arrow A → B means B imports A. Boxes on the left are shared by both runners;
+`web/` holds what only the page uses.
+
+```mermaid
+flowchart LR
+    module[(fft_bench.wasm<br/>src/wasm.rs exports)]
+    subgraph shared[shared modules]
+        stats[stats.mjs<br/>median, bootstrap CI, batches]
+        measure[measure.mjs<br/>throughput, steps]
+        markdown[markdown.mjs<br/>tables]
+        budget[budget.mjs<br/>render budget]
+        host[host.mjs<br/>git, CPU, stale module]
+    end
+    subgraph node[Node]
+        run[run.mjs]
+    end
+    subgraph web[web/]
+        serve[serve.mjs<br/>COOP/COEP server]
+        worker[worker.mjs]
+        page[page.mjs + index.html]
+        checks[checks.mjs]
+        sequence[sequence.mjs]
+        charts[charts.mjs]
+        report[report.mjs]
+    end
+    stats --> measure
+    stats --> markdown
+    module --> run
+    module --> worker
+    measure --> run
+    measure --> worker
+    markdown --> run
+    markdown --> report
+    budget --> run
+    budget --> report
+    budget --> page
+    host --> run
+    host --> serve
+    checks --> worker
+    checks --> page
+    sequence --> page
+    charts --> page
+    report --> page
+    worker --> page
+```
+
+| Part | Role |
+|---|---|
+| `serve.mjs` | serves an allowlist of files on `127.0.0.1` with `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, so browsers give the page their finest timer; `/environment` reports git hash, CPU, OS and whether the module is older than its sources |
+| `worker.mjs` | loads the module and runs every measurement off the main thread; also measures the timer tick and checks isolation and SIMD128 there, because that is the timer the measurements use |
+| `page.mjs` | runs the seven steps of `sequence.mjs` in order, renders tables and charts, writes the report |
+| `checks.mjs` | timer tick, batch length `max(10 ms, 500 × tick)`, SIMD128 probe, browser name, step outcomes |
+| `sequence.mjs` | the fixed step order: a step runs only after the one before passed; any new result resets every later step |
+| `charts.mjs` | SVG line and bar charts without a library; colours from CSS custom properties |
+| `report.mjs` | the browser run as Markdown in the `node.md` format |
+
+**Why a Worker, not an AudioWorklet.** An AudioWorklet has no high-resolution clock, and browser timers
+are coarse unless the page is cross-origin isolated (Chrome: 100 µs, isolated 5 µs). A Worker in an
+isolated page has the fine timer and runs the same wasm engine. It is not the audio thread, so a
+scheduling effect specific to that thread would not show; whether that matters is a question for the
+maintainer.
+
+**Why steps are timed by difference.** A single step (0.4–24 µs) is near the browser tick. Step k is
+timed as a batch of "preparation + steps 0..k−1" with and without step k, so each step runs on the data
+its predecessors produced and needs no extra Rust export.
