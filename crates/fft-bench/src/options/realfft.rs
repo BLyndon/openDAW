@@ -1,5 +1,6 @@
-//! `realfft` 3.5 over `rustfft` 6.4: the reference for what a mature SIMD FFT reaches. Not a decision
-//! option (third-party DSP, needs `std`). Interleaved `Complex<f32>` and unnormalized inverse are adapted.
+//! `realfft` 3.5 over `rustfft` 6.4, the library alternative from `future-plans/simd-fft.md`. Open gate
+//! questions: third-party DSP and `std` in a `no_std` engine. Interleaved `Complex<f32>` and the
+//! unnormalized inverse are adapted.
 
 use crate::{bins, RealFft};
 use ::realfft::num_complex::Complex;

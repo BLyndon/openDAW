@@ -7,12 +7,10 @@ pub mod signalsmith;
 
 use crate::RealFft;
 
-/// How an option enters the evaluation: baselines set the gates, the reference shows what is reachable,
-/// candidates must pass the gates.
+/// How an option enters the evaluation: baselines set the gates, candidates must pass them.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Role {
     Baseline,
-    Reference,
     Candidate
 }
 
@@ -26,11 +24,11 @@ fn create<T: RealFft + 'static>(n: usize) -> Box<dyn RealFft> {
     Box::new(T::new(n))
 }
 
-/// Every option the harness measures. The Day-2 prototype joins here as `Role::Candidate`.
+/// Every option the harness measures. The Day-2 prototype joins `realfft` as `Role::Candidate`.
 pub const ALL: [Entry; 5] = [
     Entry { name: "analyser", role: Role::Baseline, create: create::<analyser::AnalyserFft> },
     Entry { name: "rfft", role: Role::Baseline, create: create::<rfft::RfftOption> },
     Entry { name: "signalsmith", role: Role::Baseline, create: create::<signalsmith::SignalsmithFft> },
     Entry { name: "reverted", role: Role::Baseline, create: create::<reverted::RevertedFft> },
-    Entry { name: "realfft", role: Role::Reference, create: create::<realfft::RealFftOption> }
+    Entry { name: "realfft", role: Role::Candidate, create: create::<realfft::RealFftOption> }
 ];
