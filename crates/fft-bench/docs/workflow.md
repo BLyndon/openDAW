@@ -35,7 +35,7 @@ its own lockfile and `target/`.
 | Allocation test only          | `cargo test --test allocation`                        | ready   |
 | Accuracy report (Markdown)    | `cargo run --release --example report > report.md`    | ready   |
 | Wasm build check              | `cargo check --target wasm32-unknown-unknown`         | ready   |
-| Native benchmarks             | `cargo bench`                                         | planned |
+| Native benchmarks (≈ 4 min)   | `cargo bench`, filtered: `cargo bench -- forward/rfft` | ready   |
 | Node benchmarks               | build the wasm module, then `node run.mjs <module>`   | planned |
 | Binary size and `no_std` check| `size/size.sh`, `size/nostd-check.sh`                 | planned |
 
@@ -62,12 +62,18 @@ further changes (once those parts exist).
 ## Taking a measurement
 
 1. **Clean tree:** commit or stash first, so the build hash identifies the code that was measured.
-2. **Environment:** record CPU, OS, `rustc`, `node` and browser versions, git hash and dirty flag,
-   `RUSTFLAGS`. Planned to be printed automatically by every runner.
-3. **Warm runs only:** discard the warm-up calls; take the median of many runs and the 95 % confidence
-   interval; repeat until its half-width is ≤ 5 %.
-4. **Browsers by hand where needed:** Playwright's WebKit is not Safari; Safari is run manually.
-5. **Store results outside the crate.** Measurements belong to the evaluation, not to the harness code.
+2. **Quiet machine:** quit every application the measurement does not need (browsers, IDE indexing,
+   sync and backup clients, chat, video calls); run on mains power with Low Power Mode off; build first
+   and let the machine settle before measuring. A busy machine produced a false 45 % gap between two
+   copies of the same code here; the real gap, measured quietly and alternating, was 15 %.
+3. **Environment:** native runs print it automatically (CPU, OS, `rustc`, build, `RUSTFLAGS`, git hash
+   with a `-dirty` flag, library versions). Add `node` and browser versions by hand where they apply.
+4. **Longer runs for numbers that count:** `cargo bench -- --measurement-time 10 --warm-up-time 3`.
+   Take the median and the 95 % confidence interval; repeat noisy points until the half-width is ≤ 5 %.
+5. **Compare like with like:** two variants are compared in the same run, ideally alternating, never
+   across runs taken under different conditions.
+6. **Browsers by hand where needed:** Playwright's WebKit is not Safari; Safari is run manually.
+7. **Store results outside the crate.** Measurements belong to the evaluation, not to the harness code.
 
 ## Rules while working on the harness
 

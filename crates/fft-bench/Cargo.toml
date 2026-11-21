@@ -14,6 +14,14 @@ signalsmith = {path = "../signalsmith"}
 libm = "0.2"
 realfft = "3.5"
 
+# Default features off: no plotting or rayon, only what `cargo bench` needs.
+[dev-dependencies]
+criterion = {version = "0.5", default-features = false, features = ["cargo_bench_support"]}
+
+[[bench]]
+name = "fft"
+harness = false
+
 # rustfft only takes its SIMD128 path with this feature; natively it uses NEON/AVX by default.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 realfft = {version = "3.5", features = ["wasm_simd"]}

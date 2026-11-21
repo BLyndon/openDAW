@@ -18,9 +18,10 @@ How the harness is built and why. Parts marked *planned* do not exist yet.
 **How to read the diagram**
 
 - **Direction:** left to right, from the crates the harness reads, through its library (`src/`), to
-  the code that runs it (tests, report).
+  the code that runs it (tests, report, benchmarks).
 - **Arrow A → B:** B uses A (imports it).
-- **Arrow into a box:** every existing member of the box uses A; planned members are not yet wired.
+- **Arrow into a box:** members of the box use A, not necessarily every member (the benchmarks, for
+  example, need no reference DFT and no metrics).
 - **Outer box `crates/fft-bench`:** the harness crate. Inside it, `library` is `src/`, `options`
   holds one module per FFT option, and `consumers` holds everything that runs the library.
 - **Cylinders:** crates outside the harness. `dsp`, `signalsmith` and `math` are production crates,
@@ -52,7 +53,7 @@ flowchart LR
         subgraph consumers[consumers]
             tests[tests/]
             report[examples/report]
-            benches[benches/<br/>planned]
+            benches[benches/]
             wasm[wasm exports + run.mjs<br/>planned]
         end
     end
@@ -61,6 +62,8 @@ flowchart LR
     math --> contract
     dsp --> rfft_opt
     dsp --> tests
+    dsp --> benches
+    math --> benches
     signalsmith_crate --> signalsmith_opt
     realfft_crate --> realfft_opt
     signals --> consumers
@@ -69,7 +72,7 @@ flowchart LR
     contract --> consumers
     registry --> consumers
     classDef planned stroke-dasharray: 5 5
-    class benches,wasm planned
+    class wasm planned
 ```
 
 Production crates (`dsp`, `signalsmith`) are only read. Everything that must not change in them
@@ -83,11 +86,17 @@ pub trait RealFft {
     fn size(&self) -> usize;
     fn forward(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]);
     fn inverse(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool;
+    // For benchmarks; defaults: no preparation, kernel = forward/inverse.
+    fn prepare_forward(&mut self, input: &[f32]) {}
+    fn forward_kernel(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]) { … }
+    fn prepare_inverse(&mut self, re: &[f32], im: &[f32]) {}
+    fn inverse_kernel(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool { … }
 }
 ```
 
 | Rule                       | Why |
 |----------------------------|-----|
+| `*_kernel` is the option's native call; `prepare_*` loads data as its consumer does, untimed | benchmarks time the transform, not adapter copies; `forward`/`inverse` are built from the same two steps, so the accuracy tests cover exactly the timed code |
 | Real input, n/2 + 1 bins out, split re/im | the layout of `dsp::rfft` and of the planned kernel; audio is real |
 | Unnormalised forward, identity round trip | matches `dsp::rfft`; adapters scale where an option differs |
 | Only `new` allocates       | the engine never allocates on the render path |
@@ -110,7 +119,7 @@ iterate over it; a new option is measured everywhere by adding one entry.
 
 | Option        | Source                                  | Adapter |
 |---------------|-----------------------------------------|---------|
-| `analyser`    | copy of `AudioAnalyser::fft`, size made generic | `AnalyserPlan` (tables + `process`) and `AnalyserFft` (buffers); split so `process` can be timed alone |
+| `analyser`    | copy of `AudioAnalyser`, one compiled instance per size (`AnalyserFixed<N, HALF>`, fixed arrays like the original) | `AnalyserKernel` hides the size; `analyser_for(n)` picks the instance; `AnalyserFft` wraps it. A slice-based copy was ≈ 15 % slower, this one matches the original |
 | `rfft`        | `dsp::rfft::FftTables`, called directly | none; its API already matches. Built in zeroed heap memory, as `FftTables` has no constructor |
 | `signalsmith` | `signalsmith::fft::Fft`                 | `ComplexAsReal`: `im = 0` before forward, Hermitian mirror before inverse, as `SignalsmithStretch` does |
 | `reverted`    | `signalsmith/src/fft.rs` at `7998a6b64`, verbatim | `ComplexAsReal`; the used part of its `simd.rs` copied verbatim beside it |
@@ -162,7 +171,6 @@ magnitude steps; `metrics::contract_deviation` compares the bins with the analys
 
 | Part                     | Purpose |
 |--------------------------|---------|
-| `benches/` (Criterion)   | native timing per option and size; environment record |
 | `src/wasm.rs` + `run.mjs`| import-free wasm exports (`setup`, `run`, `step`, per-stage timing) and the Node runner; the same module later runs in an AudioWorklet |
 | budget report            | savings as % of the render quantum per consumer |
 | `size/`                  | per-option stub modules, `size.sh`, `nostd-check.sh` |

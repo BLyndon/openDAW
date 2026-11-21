@@ -35,14 +35,29 @@ impl<F: ComplexFft> RealFft for ComplexAsReal<F> {
 
     fn forward(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]) {
         let count = bins(self.fft.size());
-        self.re.copy_from_slice(input);
-        self.im.fill(0.0);
-        self.fft.forward(&mut self.re, &mut self.im);
+        self.prepare_forward(input);
+        self.forward_kernel(input, re, im);
         re[..count].copy_from_slice(&self.re[..count]);
         im[..count].copy_from_slice(&self.im[..count]);
     }
 
     fn inverse(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool {
+        self.prepare_inverse(re, im);
+        self.inverse_kernel(re, im, output);
+        output.copy_from_slice(&self.re);
+        true
+    }
+
+    fn prepare_forward(&mut self, input: &[f32]) {
+        self.re.copy_from_slice(input);
+        self.im.fill(0.0);
+    }
+
+    fn forward_kernel(&mut self, _input: &[f32], _re: &mut [f32], _im: &mut [f32]) {
+        self.fft.forward(&mut self.re, &mut self.im);
+    }
+
+    fn prepare_inverse(&mut self, re: &[f32], im: &[f32]) {
         let n = self.fft.size();
         let count = bins(n);
         self.re[..count].copy_from_slice(&re[..count]);
@@ -52,8 +67,10 @@ impl<F: ComplexFft> RealFft for ComplexAsReal<F> {
             self.re[n - bin] = re[bin];
             self.im[n - bin] = -im[bin];
         }
+    }
+
+    fn inverse_kernel(&mut self, _re: &[f32], _im: &[f32], _output: &mut [f32]) -> bool {
         self.fft.inverse(&mut self.re, &mut self.im);
-        output.copy_from_slice(&self.re);
         true
     }
 }

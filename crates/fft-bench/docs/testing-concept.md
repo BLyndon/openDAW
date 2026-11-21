@@ -91,13 +91,20 @@ Every signal at every size, N = 256, 512, …, 16384 (`signals.rs`).
 - **Denormal input** is not gated: f32 has no precision left there, and the analyser squares in f32, so
   its bins are all zero.
 
-## Performance (planned)
+## Performance
 
-| Platform                        | Role                                                | Tool |
-|---------------------------------|-----------------------------------------------------|------|
-| Native                          | development only; `realfft` uses NEON/AVX there     | Criterion |
-| Node (wasm32 + simd128)         | fast iteration; preliminary                         | `run.mjs` |
-| AudioWorklet in Chrome, Firefox, Safari | the numbers that count; Node missed the slowdown behind the revert | browser page (separate PR) |
+| Platform                        | Role                                                | Tool | Status |
+|---------------------------------|-----------------------------------------------------|------|--------|
+| Native                          | development only; `realfft` uses NEON/AVX there     | Criterion (`benches/fft.rs`) | done |
+| Node (wasm32 + simd128)         | fast iteration; preliminary                         | `run.mjs` | planned |
+| AudioWorklet in Chrome, Firefox, Safari | the numbers that count; Node missed the slowdown behind the revert | browser page (separate PR) | planned |
+
+- **What is timed:** each option's native call (`*_kernel`), never the adapter copies. Data is loaded
+  before every call (`prepare_*`, untimed), because in-place kernels destroy their input.
+- **Timer cost:** each native sample includes one `Instant` pair, measured by the `timer` group
+  (≈ 19 ns on an Apple M1, a few percent of a 256-point call).
+- **Copy fidelity:** `analyser_fidelity` times `AudioAnalyser::process` against the copy's identical
+  path at N = 1024, so a speed difference between copy and original is visible.
 
 - **Single call and throughput:** per-call timing (per-call overhead matters at N = 256) and loops inside
   wasm (timer cost amortised).

@@ -56,6 +56,7 @@ fn table(title: &str, results: &[(usize, Vec<Worst>)], value: impl Fn(&Worst) ->
 fn main() {
     let results: Vec<(usize, Vec<Worst>)> = SIZES.iter()
         .map(|&n| (n, ALL.iter().map(|entry| measure((entry.create)(n).as_mut())).collect())).collect();
+    println!("{}", fft_bench::env::markdown());
     println!("## Accuracy\n");
     table("Relative RMS vs f64 DFT (worst gated signal)", &results, |worst| Some(worst.rms));
     table("Parseval error (worst gated signal)", &results, |worst| Some(worst.parseval));

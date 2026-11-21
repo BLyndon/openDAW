@@ -33,10 +33,8 @@ impl RealFft for RealFftOption {
     }
 
     fn forward(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]) {
-        // realfft uses its input as scratch, so it gets a copy.
-        self.input.copy_from_slice(input);
-        self.forward_plan.process_with_scratch(&mut self.input, &mut self.spectrum, &mut self.forward_scratch)
-            .expect("buffer lengths are fixed at plan creation");
+        self.prepare_forward(input);
+        self.forward_kernel(input, re, im);
         for (bin, value) in self.spectrum.iter().enumerate() {
             re[bin] = value.re;
             im[bin] = value.im;
@@ -44,6 +42,26 @@ impl RealFft for RealFftOption {
     }
 
     fn inverse(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool {
+        self.prepare_inverse(re, im);
+        self.inverse_kernel(re, im, output);
+        let scale = 1.0 / self.n as f32;
+        for (target, value) in output.iter_mut().zip(&self.output) {
+            *target = value * scale;
+        }
+        true
+    }
+
+    /// realfft uses its input as scratch, so it gets a copy.
+    fn prepare_forward(&mut self, input: &[f32]) {
+        self.input.copy_from_slice(input);
+    }
+
+    fn forward_kernel(&mut self, _input: &[f32], _re: &mut [f32], _im: &mut [f32]) {
+        self.forward_plan.process_with_scratch(&mut self.input, &mut self.spectrum, &mut self.forward_scratch)
+            .expect("buffer lengths are fixed at plan creation");
+    }
+
+    fn prepare_inverse(&mut self, re: &[f32], im: &[f32]) {
         let last = self.n / 2;
         for (bin, value) in self.spectrum.iter_mut().enumerate() {
             *value = Complex::new(re[bin], im[bin]);
@@ -51,12 +69,12 @@ impl RealFft for RealFftOption {
         // DC and Nyquist of a real signal have no imaginary part; realfft rejects non-zero values there.
         self.spectrum[0].im = 0.0;
         self.spectrum[last].im = 0.0;
+    }
+
+    /// Unscaled, as the library returns it; the 1/n is left to the caller (it can be folded into a window).
+    fn inverse_kernel(&mut self, _re: &[f32], _im: &[f32], _output: &mut [f32]) -> bool {
         self.inverse_plan.process_with_scratch(&mut self.spectrum, &mut self.output, &mut self.inverse_scratch)
             .expect("buffer lengths are fixed and DC/Nyquist imaginary parts are zero");
-        let scale = 1.0 / self.n as f32;
-        for (target, value) in output.iter_mut().zip(&self.output) {
-            *target = value * scale;
-        }
         true
     }
 }

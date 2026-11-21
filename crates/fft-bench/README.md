@@ -33,7 +33,7 @@ cargo run --release --example report > report.md     # accuracy tables as Markdo
 | f64 reference DFT, test signals, metrics, analyser contract       | done                 |
 | Accuracy tests, faithful-copy tests, accuracy report              | done                 |
 | Allocation test                                                   | done                 |
-| Native benchmarks (Criterion), environment record                 | planned              |
+| Native benchmarks (Criterion), environment record                 | done                 |
 | Wasm exports and Node runner, per-stage timing                    | planned              |
 | Budget-per-consumer report                                        | planned              |
 | Binary size and `no_std` checks                                   | planned              |

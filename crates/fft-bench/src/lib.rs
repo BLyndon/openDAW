@@ -5,6 +5,7 @@
 extern crate alloc;
 
 pub mod contract;
+pub mod env;
 pub mod metrics;
 pub mod options;
 pub mod reference;
@@ -19,6 +20,10 @@ pub const fn bins(n: usize) -> usize {
 }
 
 /// A real-input FFT of one fixed power-of-two size. Only `new` may allocate.
+///
+/// Benchmarks time only the `*_kernel` methods: the option's native call, without adapter copies. The
+/// `prepare_*` methods load the data the way the option's consumer would and are not timed. Options
+/// whose native call is `forward`/`inverse` itself keep the defaults.
 pub trait RealFft {
     fn new(n: usize) -> Self where Self: Sized;
     fn size(&self) -> usize;
@@ -26,4 +31,12 @@ pub trait RealFft {
     fn forward(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]);
     /// Inverse of `forward` (round trip is identity); returns `false` if the option has none.
     fn inverse(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool;
+    fn prepare_forward(&mut self, _input: &[f32]) {}
+    fn forward_kernel(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]) {
+        self.forward(input, re, im)
+    }
+    fn prepare_inverse(&mut self, _re: &[f32], _im: &[f32]) {}
+    fn inverse_kernel(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool {
+        self.inverse(re, im, output)
+    }
 }

@@ -70,7 +70,14 @@ fn no_option_allocates_after_plan_creation() {
             let inverse = allocations_during(|| {
                 fft.inverse(&re, &im, &mut output);
             });
-            assert_eq!((forward, inverse), (0, 0), "{}, n = {n}: allocations in (forward, inverse)", entry.name);
+            // The benchmarked paths: prepare + kernel, as `benches/fft.rs` calls them.
+            let kernels = allocations_during(|| {
+                fft.prepare_forward(&input);
+                fft.forward_kernel(&input, &mut re, &mut im);
+                fft.prepare_inverse(&re, &im);
+                fft.inverse_kernel(&re, &im, &mut output);
+            });
+            assert_eq!((forward, inverse, kernels), (0, 0, 0), "{}, n = {n}: allocations in (forward, inverse, kernels)", entry.name);
         }
     }
 }

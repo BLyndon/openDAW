@@ -4,7 +4,7 @@
 
 use dsp::analyser::AudioAnalyser;
 use fft_bench::contract::{analyser_bins, analyser_window};
-use fft_bench::options::{analyser::AnalyserFft, reverted::RevertedFft, signalsmith::SignalsmithFft};
+use fft_bench::options::{analyser::{analyser_for, AnalyserFft}, reverted::RevertedFft, signalsmith::SignalsmithFft};
 use fft_bench::signals::{impulse, sine_on_bin, white_noise, Signal, NOISE_AMPLITUDE};
 use fft_bench::{bins, RealFft, SIZES};
 
@@ -83,5 +83,18 @@ fn reverted_variant_matches_signalsmith_bits_both_directions() {
             current.inverse(&current_re, &current_im, &mut current_out);
             assert_eq!(bits(&reverted_out), bits(&current_out), "n = {n}, {}: inverse", signal.name());
         }
+    }
+}
+
+#[test]
+fn copy_process_path_matches_analyser_bits() {
+    // The path the fidelity benchmark times: L+R sum, window, FFT, magnitudes, all inside the copy.
+    for (name, left, right) in [("noise + sine", white_noise(N, NOISE_AMPLITUDE), sine_on_bin(N)), ("sine + silence", sine_on_bin(N), vec![0.0; N])] {
+        let mut original = AudioAnalyser::new(USE_DEFAULT_DECAY);
+        original.process(&left, &right);
+        let mut copy = analyser_for(N);
+        copy.process(&left, &right);
+        let bits = |values: &[f32]| values.iter().map(|value| value.to_bits()).collect::<Vec<u32>>();
+        assert_eq!(bits(copy.bins()), bits(original.bins()), "{name}");
     }
 }
