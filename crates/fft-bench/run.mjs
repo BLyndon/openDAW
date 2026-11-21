@@ -2,10 +2,9 @@
 // Build first: cargo build --release --target wasm32-unknown-unknown   (SIMD128 via .cargo/config.toml)
 // Usage: node run.mjs [module.wasm] [--sizes 1024,4096] [--options rfft,realfft]
 import fs from "node:fs"
-import os from "node:os"
 import crypto from "node:crypto"
-import {execFileSync} from "node:child_process"
 import {budgetReport, RENDER_QUANTUM_NS} from "./budget.mjs"
+import {gitRevision, hostInfo} from "./host.mjs"
 import {listOptions} from "./measure.mjs"
 import {cell, environmentTable, microseconds, sizeTable, stepTable} from "./markdown.mjs"
 import {CI_TARGET, MAX_BATCHES, median, percentile, throughput, WARM_UP_CALLS} from "./stats.mjs"
@@ -71,22 +70,15 @@ const stepTimes = (steps) => {
     return samples.map(median)
 }
 
-const git = (...gitArguments) => {
-    try {
-        return execFileSync("git", gitArguments, {encoding: "utf8"}).trim()
-    } catch {
-        return "unknown"
-    }
-}
-
+const host = hostInfo()
 const environment = [
     ["date", new Date().toISOString().replace(/:\d\d\.\d+Z$/, " UTC").replace("T", " ")],
-    ["cpu", os.cpus()[0]?.model ?? "unknown"],
-    ["arch", os.arch()],
-    ["os", `${os.type()} ${os.release()}`],
+    ["cpu", host.cpu],
+    ["arch", host.arch],
+    ["os", host.os],
     ["runtime", `Node ${process.version}, V8 ${process.versions.v8}`],
     ["module", `${modulePath} (${bytes.length} bytes, sha256 ${crypto.createHash("sha256").update(bytes).digest("hex").slice(0, 12)})`],
-    ["git", `${git("rev-parse", "--short", "HEAD")}${git("status", "--porcelain", "--untracked-files=no") === "" ? "" : "-dirty"}`],
+    ["git", gitRevision()],
     ["timer pair", `${timerOverhead().toFixed(0)} ns`]
 ]
 
