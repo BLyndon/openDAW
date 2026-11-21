@@ -11,7 +11,7 @@ candidate. `realfft`/`rustfft` from the crate sources (realfft 3.5.1, rustfft 6.
 
 | Requirement              | `dsp::analyser`              | `dsp::rfft`                  | `signalsmith::fft`                  | `realfft`/`rustfft`        |
 |--------------------------|------------------------------|------------------------------|-------------------------------------|----------------------------|
-| Real-input (N/2 + twist) | no, full N complex           | yes                          | no, full N complex both directions  | yes                        |
+| Real-input (N/2 + twist) | no, full N complex           | yes                          | no; two real channels per complex FFT | yes                        |
 | Layout                   | split re/im                  | split re/im                  | split re/im                         | interleaved `Complex<f32>` |
 | Sizes                    | fixed 1024                   | any power of two             | any power of two                    | any                        |
 | Inverse                  | no                           | yes, identity round trip     | yes, scaled 1/N                     | yes, unnormalized (×N)     |
@@ -133,9 +133,15 @@ All five are separate homebrew radix-2 DIT implementations with the same strided
 
 - **Consumer:** `SignalsmithStretch`, one instance per playing region, in the engine. Block 4096,
   interval 1024 (`stretch.rs` lines 102–106).
-- **Real-input waste in both directions:** `analyse` zeroes `im` before `forward` (lines 645–647);
-  `synthesise` builds the Hermitian mirror before `inverse` (lines 663–668). Both are full 4096-point
-  complex transforms on real data, so the real-input trick saves ≈ 2× here too, as for the analyser.
+- **Two real channels per complex FFT, no real-input waste** (corrected; an earlier version of this
+  section said the opposite). The engine calls only `process_stream_stereo` (`audio_region_player.rs`
+  lines 579, 610, 779), which runs `frame_step`. Step 0 puts the left channel into `re` and the right
+  channel into `im` (`stretch.rs` lines 503–511); after the forward FFT the two spectra are separated by
+  symmetry (lines 521–522). Before the inverse both spectra are packed into one complex spectrum again
+  (lines 554–559). So each 4096-point complex FFT carries two real channels, and the real-input trick
+  has nothing left to gain here. The `im = 0` path (`analyse`, `synthesise`, lines 639–670) belongs to
+  `process_mono` and `process_stream`, which only `signalsmith`'s own tests and examples call. The
+  stereo packing arrived with `49a65a02f` (2026-07-15 11:52), before the SIMD attempt in section 6.
 - **Stage-wise API:** `bit_reverse`, `stage(level)` and `scale` are public so the frame's work can be
   spread over several render quanta (`splitComputation`, `d02dc79b8`; steps in lines 491–566). Any
   replacement must keep this API or the consumer loses its peak smoothing.
@@ -180,7 +186,7 @@ How the planned kernel differs from that attempt:
 | Stages 1–2         | scalar                         | vectorised (radix-4 first pass, transpose)|
 | Twiddles           | strided, gathered per lane     | contiguous per stage, plain vector loads  |
 | Data loads         | `re` vector, `im` lane by lane (compiled) | `v128_load` for all             |
-| Real input         | full N complex                 | N/2 complex + post-twist                  |
+| Real input         | two real channels per complex FFT (stereo packing, `49a65a02f`) | same for `signalsmith`; N/2 complex + post-twist where one real signal is transformed (analyser) |
 | Measured in        | Node only                      | Node and AudioWorklet in three browsers   |
 
 ## 7. Dependency policy
@@ -224,8 +230,9 @@ Further:
 
 - Three scalar baselines on the render path: analyser (1024), `dsp::rfft` (up to 16384),
   `signalsmith::fft` (4096).
-- The real-input trick alone (≈ 2× for analyser and `signalsmith`, no SIMD, no browser-tier risk)
-  must be reported separately from the SIMD gain.
+- The real-input trick alone (≈ 2× for the analyser, no SIMD, no browser-tier risk) must be reported
+  separately from the SIMD gain. `signalsmith` has no such reserve: it already transforms two real
+  channels per complex FFT (section 5).
 - A new kernel needs a stage-wise API for `signalsmith`.
 - `future-plans/simd-fft.md` is outdated in: "the only FFT we have" (section 4), the consumers list
   (sections 4–5), the stage order (section 2), and it does not mention the reverted attempt

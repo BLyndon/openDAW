@@ -20,7 +20,7 @@ No production code changes; the only edits outside the new crate are one `exclud
 | Rel. RMS "≤ 2× current"          | ≤ 2× `dsp::rfft` (all N); ≤ 2× analyser copy (contract path)        | "current" is ambiguous with several baselines    |
 | Browser page optional            | AudioWorklet run in three browsers required for the decision        | Node missed the slowdown that caused the revert  |
 | —                                | Reverted SIMD variant as an extra option                            | Tests the revert hypothesis directly             |
-| —                                | Real-input gain reported separately from the SIMD gain              | ≈ 2× without SIMD for analyser and `signalsmith` |
+| —                                | Real-input gain reported separately from the SIMD gain              | ≈ 2× without SIMD for the analyser; `signalsmith` already packs two channels per FFT |
 
 ## Options
 
@@ -28,7 +28,7 @@ No production code changes; the only edits outside the new crate are one `exclud
 |-------------|-----------------------------------------------------------------------|---------|-------------------|
 | `analyser`  | Size-generic copy of `AudioAnalyser::fft`                             | no      | no_std-compatible |
 | `rfft`      | `dsp::rfft::FftTables`, called directly                               | yes     | no_std            |
-| `signalsmith` | `signalsmith::fft::Fft`, called directly, `im = 0` as its consumer does | yes   | no_std + alloc    |
+| `signalsmith` | `signalsmith::fft::Fft`, called directly with `im = 0`; its consumer fills `im` with the right channel, same cost | yes | no_std + alloc |
 | `reverted`  | `signalsmith::fft` as of `7998a6b64` (strided gathers, stages 1–2 scalar) | yes | no_std + alloc    |
 | `realfft`   | `realfft` 3.5 over `rustfft` 6.4, `wasm_simd` on wasm32; candidate, as the plan asks | yes | std   |
 | `proto`     | Day-2 SIMD kernel, added later through the same interface             | yes     | no_std            |
@@ -101,7 +101,7 @@ Derived per N: % of the 128-frame render quantum (2.667 ms at 48 kHz).
 | Consumer                     | Call pattern                                                        |
 |------------------------------|---------------------------------------------------------------------|
 | Analyser                     | 1 forward, N = 1024, per 1024 frames (8 quanta)                     |
-| Time-stretch (`signalsmith`) | per region and channel: 1 forward + 1 inverse, N = 4096, per 1024 frames; peak step per quantum |
+| Time-stretch (`signalsmith`) | per region: 1 forward + 1 inverse, N = 4096, both channels in one complex FFT, per 1024 frames; peak step per quantum |
 | Convolver (`dsp::rfft`)      | forward + inverse at N = 256 every quantum, N = 2048 and 16384 spread over their periods |
 
 Reported as % of budget saved for 1, 3 and 5 regions (the counts in `d02dc79b8`) and for the plan's
@@ -160,8 +160,8 @@ Results go to `analysis/results/` (private), not into the crate.
 | 4  | `signalsmith` and `reverted` options                     | 30 min | done  |
 | 5  | `realfft` option, accuracy tests, report example         | 30 min | done  |
 | 6  | Allocation test                                          | 15 min | done  |
-| 7  | Criterion benches + environment record                   | 30 min |       |
-| 8  | wasm exports (import-free) + `run.mjs`, stage timing     | 60 min |       |
+| 7  | Criterion benches + environment record                   | 30 min | done  |
+| 8  | wasm exports (import-free) + `run.mjs`, stage timing     | 60 min | done  |
 | 9  | Budget-per-consumer report                               | 30 min |       |
 | 10 | Size stubs, `size.sh`, `nostd-check.sh`                  | 45 min |       |
 
