@@ -1,7 +1,8 @@
 # Runbook
 
 A complete measurement run, start to finish: the numbers that go into the evaluation. Each step lists the
-command, what a good result looks like, and what to do if it is not. Background on the method is in the
+command, the expected result when everything is in order (**Expected**), and what to do if the result
+differs (**If not**). Background on the method is in the
 [workflow](workflow.md) and the [testing concept](testing-concept.md).
 
 ## Contents
@@ -46,9 +47,13 @@ mkdir -p "$RESULTS"
 3. **Build first, then wait.** Builds heat the machine. Build everything once, then give it a minute:
 
    ```sh
-   cargo build --release --examples --benches
+   cargo build --release --examples
+   cargo bench --bench fft --no-run
    cargo build --release --target wasm32-unknown-unknown
    ```
+
+   Examples and benches build separately: the release profile aborts on panic, Criterion's harness
+   needs unwinding, and one build of both links the bench against the wrong copy of the library.
 
 ## 2. Correctness
 
@@ -59,8 +64,9 @@ cargo test
 node --test budget.test.mjs
 ```
 
-**Good:** `tests/accuracy.rs` 8 passed, `tests/allocation.rs` 2 passed, `tests/faithful_copy.rs` 8 passed;
-budget model 5 passed, 0 failed.
+**Expected:**
+
+- Every test passes; none fails.
 
 **If not:** stop. A failing faithful-copy test means a copy no longer matches its original; a failing
 accuracy or allocation test means an option breaks a gate. Fix first, then start again at step 1.
@@ -71,8 +77,13 @@ accuracy or allocation test means an option breaks a gate. Fix first, then start
 cargo run --release --example report > "$RESULTS/accuracy.md"
 ```
 
-**Good:** an environment table on top, then five tables. Relative RMS around 1e-7 for every option,
-round trip below 1e-5, analyser contract below 1e-5. Takes a few seconds.
+**Expected:**
+
+- Finishes in a few seconds.
+- An environment table on top, then five tables.
+- Relative RMS around 1e-7 for every option.
+- Round-trip error below 1e-5.
+- Analyser contract deviation below 1e-5.
 
 ## 4. Native benchmarks
 
@@ -83,8 +94,11 @@ options and the copy fidelity on the same machine.
 cargo bench --bench fft -- --measurement-time 10 --warm-up-time 3 > "$RESULTS/native.txt"
 ```
 
-**Good:** an environment table on top; `analyser_fidelity/original` and `analyser_fidelity/copy` within
-a few percent of each other; every `time:` interval within ±5 % of its middle value.
+**Expected:**
+
+- An environment table on top.
+- `analyser_fidelity/original` and `analyser_fidelity/copy` within a few percent of each other.
+- Every `time:` interval within ±5 % of its middle value.
 
 **If not:**
 
@@ -100,9 +114,12 @@ a few percent of each other; every `time:` interval within ±5 % of its middle v
 node run.mjs > "$RESULTS/node.md"
 ```
 
-**Good:** about 30 seconds. An environment table (Node and V8 versions, module hash, git hash, timer
-cost), throughput tables, single-call tables, the step table for `signalsmith`, and the render budget per
-consumer. No ⚠ in the tables (the one in the legend line does not count).
+**Expected:**
+
+- Finishes in about 30 seconds.
+- An environment table: Node and V8 versions, module hash, git hash, timer cost.
+- Throughput tables, single-call tables, the step table for `signalsmith`, the render budget per consumer.
+- No ⚠ in the tables. The one in the legend line does not count.
 
 **If not:** a ⚠ marks a point whose confidence interval stayed above 5 % after 120 batches. Rerun it
 alone, for example `node run.mjs --sizes 4096 --options signalsmith`, on a quieter machine.
@@ -117,9 +134,12 @@ size/size.sh > "$RESULTS/size.md"
 size/nostd-check.sh > "$RESULTS/nostd.md"
 ```
 
-**Good:** both print a Markdown table, together in about 30 seconds. `nostd-check.sh` shows `yes` for
-`empty`, `analyser`, `rfft` and `signalsmith`; `realfft` shows **no** with a duplicate `panic_impl`.
-That is the expected result: `std` brings a panic handler that collides with the engine's.
+**Expected:**
+
+- Both scripts print a Markdown table, together in about 30 seconds.
+- `nostd-check.sh` shows `yes` for `empty`, `analyser`, `rfft` and `signalsmith`.
+- `nostd-check.sh` shows **no** for `realfft`, with a duplicate `panic_impl`. This is a finding, not a
+  failure: `std` brings a panic handler that collides with the engine's.
 
 **If not:** `wasm-opt not found` → install binaryen. A stub other than `realfft` failing `no_std` means a
 dependency started to need `std`; read its first error line in the table.
@@ -159,6 +179,8 @@ When the prototype or another kernel joins the registry (see
 | `target may not be installed` | wasm target missing | `rustup target add wasm32-unknown-unknown` |
 | wasm build fails on SIMD intrinsics | a `RUSTFLAGS` variable replaces `.cargo/config.toml` (`+simd128`) | `unset RUSTFLAGS` |
 | `run.mjs` fails to instantiate the module | module missing or stale | rebuild with `cargo build --release --target wasm32-unknown-unknown` |
+| `requires panic strategy 'abort'` and an output filename collision warning | examples and benches built in one `cargo build` | build them separately, as in step 1 |
+| `could not find Cargo.toml` | shell is not in `crates/fft-bench` | `cd crates/fft-bench` |
 | First `cargo bench` takes minutes | Criterion and its dependencies are downloaded and built once | wait; later runs start immediately |
 | Numbers jump between runs | busy machine | step 1 again; compare only numbers from one run |
 | `wasm-opt` rejects a module | its feature flags differ from the build | keep `size.sh`'s feature list equal to `build-wasm.sh` |
