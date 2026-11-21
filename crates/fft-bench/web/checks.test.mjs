@@ -1,7 +1,7 @@
 // Checks of the browser environment checks and step outcomes: node --test web/checks.test.mjs
 import {test} from "node:test"
 import assert from "node:assert/strict"
-import {batchNsFor, browserName, evaluateEnvironment, measureTick, simdSupported, stepOutcome} from "./checks.mjs"
+import {batchNsFor, browserName, evaluateEnvironment, fetchHost, fetchModuleBytes, measureTick, simdSupported, stepOutcome} from "./checks.mjs"
 
 const CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 const FIREFOX = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0"
@@ -63,4 +63,21 @@ test("stepOutcome: a hidden tab warns", () => {
 test("stepOutcome: a CI above 5 % warns, unmeasured entries are ignored", () => {
     assert.equal(stepOutcome([{ci: 0.01}, {ci: 0.08}], {wasHidden: false}).status, "warn")
     assert.deepEqual(stepOutcome([{ci: 0.01}, undefined], {wasHidden: false}), {status: "ok", reasons: []})
+})
+
+test("stepOutcome: a hidden tab from an earlier run of the step stays a warning after a rerun", () => {
+    assert.deepEqual(stepOutcome([{ci: 0.01}], {wasHidden: false, previous: ["tab was hidden"]}).reasons, ["tab was hidden"])
+})
+
+test("fetchHost: a missing, failing or non-JSON endpoint gives undefined", async () => {
+    const answer = (ok, json) => async () => ({ok, json: json})
+    assert.equal(await fetchHost(answer(false, async () => ({}))), undefined)
+    assert.equal(await fetchHost(answer(true, async () => { throw new SyntaxError("Unexpected token '<'") })), undefined)
+    assert.equal(await fetchHost(async () => { throw new TypeError("network") }), undefined)
+    assert.deepEqual(await fetchHost(answer(true, async () => ({git: "abc"}))), {git: "abc"})
+})
+
+test("fetchModuleBytes: a missing module names the rebuild command", async () => {
+    await assert.rejects(fetchModuleBytes(async () => ({ok: false, status: 404}), "/fft_bench.wasm"),
+        /cargo build --release --target wasm32-unknown-unknown/)
 })

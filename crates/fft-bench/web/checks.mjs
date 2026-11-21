@@ -2,6 +2,8 @@
 import {CI_TARGET} from "../stats.mjs"
 
 export const TICK_LIMIT_NS = 20000
+export const HIDDEN_REASON = "tab was hidden"
+const REBUILD = "cargo build --release --target wasm32-unknown-unknown"
 const MIN_BATCH_NS = 10e6
 const TICKS_PER_BATCH = 500
 
@@ -45,10 +47,22 @@ export const evaluateEnvironment = ({isolated, tickNs, simd}) => {
     return {status: reasons.length === 0 ? "ok" : "fail", reasons}
 }
 
-export const stepOutcome = (measures, {wasHidden}) => {
+// `previous` holds the step's reasons before a rerun of single points; a hidden tab taints the whole step.
+export const stepOutcome = (measures, {wasHidden, previous = []}) => {
     const unsure = measures.filter((measure) => measure !== undefined && measure.ci > CI_TARGET).length
     const reasons = [
-        ...wasHidden ? ["tab was hidden"] : [],
+        ...wasHidden || previous.includes(HIDDEN_REASON) ? [HIDDEN_REASON] : [],
         ...unsure === 0 ? [] : [`${unsure} point${unsure === 1 ? "" : "s"} with a CI above ${CI_TARGET * 100} %`]]
     return {status: reasons.length === 0 ? "ok" : "warn", reasons}
+}
+
+export const fetchHost = (fetchUrl = (url) => fetch(url)) => Promise.resolve().then(() => fetchUrl("/environment"))
+    .then((response) => response.ok ? response.json() : undefined).catch(() => undefined)
+
+export const fetchModuleBytes = async (fetchUrl, url) => {
+    const response = await fetchUrl(url)
+    if (!response.ok) {
+        throw new Error(`module not found (HTTP ${response.status}): build it with \`${REBUILD}\``)
+    }
+    return response.arrayBuffer()
 }

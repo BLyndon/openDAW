@@ -3,30 +3,18 @@ import {CONSUMERS, consumerLoad, REGION_COUNTS, budgetReport} from "../budget.mj
 import {cell, sizeTable, stepTable} from "../markdown.mjs"
 import {CI_TARGET} from "../stats.mjs"
 import {barChart, lineChart} from "./charts.mjs"
-import {batchNsFor, browserName, evaluateEnvironment, stepOutcome} from "./checks.mjs"
+import {batchNsFor, browserName, evaluateEnvironment, fetchHost, stepOutcome} from "./checks.mjs"
+import {createClient} from "./client.mjs"
 import {buildReport, reportFileName} from "./report.mjs"
-import {createSequence, STEPS} from "./sequence.mjs"
+import {createSequence, runStep, STEPS} from "./sequence.mjs"
 
 const SIZES = [256, 512, 1024, 2048, 4096, 8192, 16384]
 const NUMBERS = ["①", "②", "③", "④", "⑤", "⑥", "⑦"]
 const OUTCOME = {ok: "✔ as expected", warn: "⚠ done, with remarks", fail: "✘ failed", running: "running…", ready: "", locked: ""}
 const sequence = createSequence()
 const browser = browserName(navigator.userAgent)
-const worker = new Worker(new URL("./worker.mjs", import.meta.url), {type: "module"})
-const pending = new Map()
-let nextRequest = 0
+const request = createClient(new Worker(new URL("./worker.mjs", import.meta.url), {type: "module"}))
 let wasHidden = false
-
-worker.onmessage = ({data: {id, result, error}}) => {
-    const {resolve, reject} = pending.get(id)
-    pending.delete(id)
-    error === undefined ? resolve(result) : reject(new Error(error))
-}
-const request = (type, payload = {}) => new Promise((resolve, reject) => {
-    const id = nextRequest++
-    pending.set(id, {resolve, reject})
-    worker.postMessage({id, type, ...payload})
-})
 document.addEventListener("visibilitychange", () => wasHidden ||= document.hidden)
 
 const escape = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -63,6 +51,7 @@ const markdownToHtml = (lines) => {
     return html.join("")
 }
 
+document.getElementById("steps").replaceChildren()
 const sections = new Map(STEPS.map((step, index) => {
     const section = document.createElement("section")
     section.innerHTML = `<div class="step-head"><h2>${NUMBERS[index]} ${escape(step.title)}</h2><button>Run</button></div>`
@@ -130,18 +119,16 @@ const renderThroughput = (direction) => {
         rerunPoint(direction, options().find((option) => option.name === button.dataset.name), Number(button.dataset.n))))
 }
 
-const throughputOutcome = (direction, data) => ({...stepOutcome(Object.values(data), {wasHidden}), data})
+const throughputOutcome = (direction, data, previous = []) => ({...stepOutcome(Object.values(data), {wasHidden, previous}), data})
 
-const rerunPoint = async (direction, option, n) => {
-    sequence.start(direction)
-    wasHidden = document.hidden
-    render()
-    progress(direction, 0, 1)
-    const measure = await request("throughput", {option: option.option, n, direction, batchNs: batchNs()})
-    sequence.replacePoint(direction, key(option.name, n), measure)
-    sequence.finish(direction, throughputOutcome(direction, sequence.data(direction)))
-    renderThroughput(direction)
-    render()
+const rerunPoint = (direction, option, n) => {
+    const previous = sequence.reasons(direction)
+    return run(direction, async () => {
+        progress(direction, 0, 1)
+        const measure = await request("throughput", {option: option.option, n, direction, batchNs: batchNs()})
+        sequence.replacePoint(direction, key(option.name, n), measure)
+        return throughputOutcome(direction, sequence.data(direction), previous)
+    })
 }
 
 const times = (name, n) => {
@@ -162,8 +149,8 @@ const environmentRows = () => {
 
 const steps = {
     environment: async () => {
-        const host = await fetch("/environment").then((response) => response.ok ? response.json() : undefined)
         const checks = await request("environment")
+        const host = await fetchHost()
         const evaluated = evaluateEnvironment(checks)
         const reasons = [...evaluated.reasons, ...host === undefined ? ["the /environment endpoint is missing: serve the page with `node web/serve.mjs`"] : []]
         document.getElementById("environment").textContent = [`${browser.name} ${browser.version}`, host?.cpu, host?.os,
@@ -175,7 +162,7 @@ const steps = {
     },
     module: async () => {
         const loaded = await request("load", {url: "/fft_bench.wasm"})
-        const stale = sequence.data("environment").host.moduleStale
+        const stale = (await fetchHost())?.moduleStale === true
         document.getElementById("environment").textContent += ` · module ${loaded.sha256}`
         sections.get("module").querySelector(".results").innerHTML = markdownToHtml(["| Option | Registry slot | Complex |", "|---|---|---|",
             ...loaded.options.map((option) => `| ${option.name} | ${option.option} | ${option.complex ? "yes" : "no"} |`)])
@@ -195,7 +182,9 @@ const steps = {
     },
     budget: async () => ({status: "ok", reasons: [], data: {}}),
     report: async () => {
-        const markdown = buildReport({environment: environmentRows(), options: options(), sizes: SIZES,
+        const remarks = STEPS.filter(({id}) => sequence.state(id) === "warn")
+            .flatMap(({id, title}) => sequence.reasons(id).map((reason) => `${title}: ${reason}`))
+        const markdown = buildReport({environment: environmentRows(), options: options(), sizes: SIZES, remarks,
             results: SIZES.flatMap((n) => options().map((option) => ({name: option.name, n, forward: sequence.data("forward")[key(option.name, n)],
                 inverse: sequence.data("inverse")[key(option.name, n)]}))), steps: stepEntries()})
         const link = document.createElement("a")
@@ -213,8 +202,12 @@ const renderResults = {
     inverse: () => renderThroughput("inverse"),
     steps: () => {
         const entries = stepEntries()
+        const largest = (entry) => entry.steps.reduce((top, step) => step.median > top.median ? step : top)
+        const flagged = entries.filter((entry) => largest(entry).ci > CI_TARGET)
         sections.get("steps").querySelector(".results").innerHTML = entries.length === 0 ? "<p>No option splits its transform into steps.</p>"
             : markdownToHtml(stepTable(entries.map((entry) => ({...entry, steps: entry.steps.map((step) => step.median)}))))
+            + (flagged.length === 0 ? "" : `<p>Largest step with a CI above ${CI_TARGET * 100} % (run the step again): ${flagged.map((entry) =>
+                `${escape(entry.name)} N = ${entry.n} (±${(largest(entry).ci * 100).toFixed(1)} %)`).join(" · ")}</p>`)
     },
     budget: () => {
         const loads = (consumer) => options().map((option) => ({name: option.name, slot: slot(option), load: consumerLoad(consumer, option, times)}))
@@ -230,12 +223,11 @@ const renderResults = {
     }
 }
 
-const run = async (id) => {
-    sequence.start(id)
+const run = async (id, work = steps[id]) => {
     wasHidden = document.hidden
+    const finished = runStep(sequence, id, work)
     render()
-    const outcome = await steps[id]().catch((error) => ({status: "fail", reasons: [error.message], data: undefined}))
-    sequence.finish(id, outcome)
+    const outcome = await finished
     if (outcome.status !== "fail") {
         renderResults[id]?.()
     }

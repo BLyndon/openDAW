@@ -1,6 +1,6 @@
 // Runs the measurements off the main thread. Requests are answered one at a time, in order, with the same id.
 import {listOptions, measureSteps, measureThroughput} from "../measure.mjs"
-import {measureTick, simdSupported} from "./checks.mjs"
+import {fetchModuleBytes, measureTick, simdSupported} from "./checks.mjs"
 
 const now = () => performance.now() * 1e6
 let wasm
@@ -10,7 +10,7 @@ const hex = (buffer) => [...new Uint8Array(buffer)].map((byte) => byte.toString(
 const handlers = {
     environment: () => ({isolated: self.crossOriginIsolated === true, tickNs: measureTick(now), simd: simdSupported()}),
     load: async ({url}) => {
-        const bytes = await (await fetch(url)).arrayBuffer()
+        const bytes = await fetchModuleBytes((target) => fetch(target), url)
         wasm = (await WebAssembly.instantiate(bytes, {})).instance.exports
         return {options: listOptions(wasm), bytes: bytes.byteLength, sha256: hex(await crypto.subtle.digest("SHA-256", bytes)).slice(0, 12)}
     },

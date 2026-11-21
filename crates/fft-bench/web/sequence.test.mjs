@@ -1,7 +1,7 @@
 // Checks of the fixed step order of the browser page: node --test web/sequence.test.mjs
 import {test} from "node:test"
 import assert from "node:assert/strict"
-import {createSequence, STEPS} from "./sequence.mjs"
+import {createSequence, runStep, STEPS} from "./sequence.mjs"
 
 const OK = {status: "ok", reasons: [], data: {}}
 const states = (sequence) => STEPS.map(({id}) => sequence.state(id))
@@ -59,4 +59,18 @@ test("starting a locked step throws, and nothing runs while a step is running", 
     sequence.start("environment")
     assert.equal(sequence.state("environment"), "running")
     assert.equal(sequence.canRun("environment"), false)
+})
+
+test("runStep: a failing step ends as fail with its message, and the page can run again", async () => {
+    const sequence = createSequence()
+    await runStep(sequence, "environment", async () => { throw new Error("worker trapped") })
+    assert.equal(sequence.state("environment"), "fail")
+    assert.deepEqual(sequence.reasons("environment"), ["worker trapped"])
+    assert.equal(sequence.canRun("environment"), true)
+})
+
+test("runStep: a successful step finishes with its outcome", async () => {
+    const sequence = createSequence()
+    await runStep(sequence, "environment", async () => OK)
+    assert.equal(sequence.state("module"), "ready")
 })

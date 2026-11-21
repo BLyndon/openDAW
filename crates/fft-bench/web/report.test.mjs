@@ -40,3 +40,12 @@ test("the budget covers the analyser", () => {
 test("reportFileName: browser and major version, lower case", () => {
     assert.equal(reportFileName({name: "Safari", version: "26.1"}), "browser-safari-26.md")
 })
+
+test("remarks of warned steps are carried into the report, right after the environment", () => {
+    const withRemarks = buildReport({environment: [["browser", "Chrome 156"]], options, sizes, results, steps,
+        remarks: ["Forward throughput: tab was hidden", "Load module: module older than its sources"]})
+    const remarks = withRemarks.indexOf("## Remarks")
+    assert.ok(remarks > withRemarks.indexOf("## Environment") && remarks < withRemarks.indexOf("## Wasm timings"))
+    assert.match(withRemarks, /- ⚠ Forward throughput: tab was hidden/)
+    assert.doesNotMatch(report, /## Remarks/)
+})

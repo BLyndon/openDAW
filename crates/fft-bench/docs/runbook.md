@@ -180,7 +180,8 @@ Playwright's WebKit is not Safari.
 
 - Step 1 ✔: cross-origin isolated, timer tick ≤ 20 µs (Chrome shows 5 µs), SIMD128 available.
 - Step 2 ✔: every registered option listed; the module hash equals the `module` line in `node.md`.
-- Steps 3–5 ✔, or ⚠ for single points only; rerun those with their rerun button.
+- Steps 3–5 ✔, or ⚠ for single points only. Rerun those in steps 3 and 4 with their rerun button; step 5
+  names its flagged points and is run again as a whole.
 - No "tab was hidden" remark in any step.
 - Step 7 downloads `browser-<browser>-<major version>.md`. Move it to `$RESULTS`.
 - A few minutes per browser, most of it in step 5.
@@ -191,7 +192,8 @@ Playwright's WebKit is not Safari.
   timer, or no SIMD128. Nothing can be measured until it passes.
 - **"module older than its sources"** in step 2: rebuild the wasm module, reload the page.
 - **"tab was hidden"**: the browser throttled the page while it was in the background, and timings run
-  2–3× slow. Run the step again with the tab in front.
+  2–3× slow. Run the whole step again with the tab in front; rerunning single points keeps the remark.
+- **Remarks in the report**: every ⚠ reason of the run is listed under "Remarks" at the top of the report.
 - **Many ⚠ points**: the machine is busy; step 1 of this runbook again.
 
 The page times in a Worker, not in an AudioWorklet: a worklet has no high-resolution clock. The numbers

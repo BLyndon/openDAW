@@ -55,3 +55,12 @@ export const createSequence = () => {
         }
     }
 }
+
+// Runs one step; a failure keeps the step's earlier data, so a failed rerun of one point loses nothing.
+export const runStep = async (sequence, id, work) => {
+    sequence.start(id)
+    const outcome = await Promise.resolve().then(work)
+        .catch((error) => ({status: "fail", reasons: [error.message], data: sequence.data(id)}))
+    sequence.finish(id, outcome)
+    return outcome
+}

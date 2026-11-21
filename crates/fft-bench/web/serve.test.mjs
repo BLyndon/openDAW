@@ -64,3 +64,8 @@ test("a module older than a source file is stale", () => {
     assert.equal(moduleIsStale(modulePath, [path.join(root, "src")]), true)
     assert.equal(moduleIsStale(path.join(root, "missing.wasm"), [path.join(root, "src")]), true)
 })
+
+test("the shipped page says how to serve it when its script cannot run", () => {
+    const page = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8")
+    assert.match(page, /<div id="steps">[^<]*node web\/serve\.mjs[^<]*<\/div>/)
+})

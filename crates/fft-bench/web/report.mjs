@@ -4,14 +4,16 @@ import {budgetReport, RENDER_QUANTUM_NS} from "../budget.mjs"
 import {cell, environmentTable, sizeTable, stepTable} from "../markdown.mjs"
 import {CI_TARGET, MAX_BATCHES} from "../stats.mjs"
 
-export const buildReport = ({environment, options, sizes, results, steps}) => {
+export const buildReport = ({environment, options, sizes, results, steps, remarks = []}) => {
     const table = (title, value) => sizeTable(title, sizes, options, value, results)
     const times = (name, n) => {
         const result = results.find((entry) => entry.name === name && entry.n === n)
         return result?.forward === undefined ? undefined : {forward: result.forward.median, inverse: result.inverse?.median}
     }
     return [
-        ...environmentTable(environment), "", "## Wasm timings (browser)", "",
+        ...environmentTable(environment), "",
+        ...remarks.length === 0 ? [] : ["## Remarks", "", ...remarks.map((remark) => `- ⚠ ${remark}`), ""],
+        "## Wasm timings (browser)", "",
         `Throughput: median µs per call with the 95 % CI half-width; ⚠ marks a CI above ${CI_TARGET * 100} % after ${MAX_BATCHES} batches.`, "",
         ...table("Forward, throughput (µs)", (result) => cell(result?.forward)),
         ...table("Inverse, throughput (µs)", (result) => cell(result?.inverse)),
