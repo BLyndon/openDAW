@@ -40,6 +40,8 @@ mkdir -p "$RESULTS"
 
 ## 1. Prepare
 
+**Purpose:** make the results attributable and the timings undisturbed.
+
 1. **Clean tree.** `git status` shows nothing to commit, so the hash in every result identifies the code.
    A result with `-dirty` in its environment header is not attributable.
 2. **Quiet machine.** Quit every application the run does not need (browsers, IDE indexing, sync and
@@ -57,7 +59,8 @@ mkdir -p "$RESULTS"
 
 ## 2. Correctness
 
-Nothing is measured until this passes.
+**Purpose:** pass/fail. Does every option meet its gates, and does the harness itself work? Nothing is
+measured until this passes.
 
 ```sh
 cargo test
@@ -73,6 +76,9 @@ accuracy or allocation test means an option breaks a gate. Fix first, then start
 
 ## 3. Accuracy report
 
+**Purpose:** numbers, not pass/fail. How far each option's output is from the exact result and from the
+analyser, per signal and size.
+
 ```sh
 cargo run --release --example report > "$RESULTS/accuracy.md"
 ```
@@ -84,8 +90,15 @@ cargo run --release --example report > "$RESULTS/accuracy.md"
 - Relative RMS around 1e-7 for every option.
 - Round-trip error below 1e-5.
 - Analyser contract deviation below 1e-5.
+- `0.0e0` means the deviation is exactly zero: the option's output is bit-identical to the reference.
+  In the analyser contract table this is expected for the `analyser` column (compared with itself), for
+  options that compute the same radix-2 in the same order (`signalsmith`, `reverted`), and for the
+  impulse and denormal rows. Denormal input squares to zero in every option, so that row tells nothing
+  about accuracy.
 
 ## 4. Native benchmarks
+
+**Purpose:** time per call on this machine's CPU, for development and copy fidelity, not for the decision.
 
 Development numbers only (natively `realfft` uses NEON or AVX, not SIMD128), but they show the scalar
 options and the copy fidelity on the same machine.
@@ -110,6 +123,8 @@ cargo bench --bench fft -- --measurement-time 10 --warm-up-time 3 > "$RESULTS/na
 
 ## 5. Wasm in Node, with the render budget
 
+**Purpose:** time per call as wasm with SIMD128, and what share of the render quantum each consumer would use.
+
 ```sh
 node run.mjs > "$RESULTS/node.md"
 ```
@@ -129,6 +144,9 @@ SIMD pass. The numbers that count come from step 7.
 
 ## 6. Binary size and no_std
 
+**Purpose:** what each option adds to the engine's wasm binary, and whether it can link into the
+`no_std` engine at all.
+
 ```sh
 size/size.sh > "$RESULTS/size.md"
 size/nostd-check.sh > "$RESULTS/nostd.md"
@@ -146,12 +164,16 @@ dependency started to need `std`; read its first error line in the table.
 
 ## 7. Browsers
 
+**Purpose:** the timings that count, in the runtimes the engine actually runs in.
+
 Not available yet: the AudioWorklet page that runs the same wasm module and `budget.mjs` in Chrome,
 Firefox and Safari is planned as a separate PR. Until then, steps 4 and 5 are the only timings, and they
 are preliminary. When it exists: run Safari by hand (Playwright's WebKit is not Safari), and record
 browser name and version with every result.
 
 ## 8. Wrap up
+
+**Purpose:** make sure the result files belong together and are kept.
 
 1. **Check the headers.** Every result file starts with an environment table. The git hash must be the
    same everywhere and without `-dirty`.
