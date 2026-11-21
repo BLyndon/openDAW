@@ -4,8 +4,9 @@ version = "0.0.0"
 edition = "2021"
 publish = false
 
+# cdylib: the wasm32 build becomes a loadable module (exports in src/wasm.rs).
 [lib]
-crate-type = ["lib"]
+crate-type = ["lib", "cdylib"]
 
 [dependencies]
 dsp = {path = "../dsp"}
@@ -29,3 +30,9 @@ realfft = {version = "3.5", features = ["wasm_simd"]}
 # The f64 reference DFT is O(n²): ~134 M multiply-adds per signal at n = 16384, too slow unoptimised.
 [profile.test]
 opt-level = 3
+
+# As the engine builds its DSP crates (crates/Cargo.toml: opt-level 3 for dsp/signalsmith, LTO, abort).
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"

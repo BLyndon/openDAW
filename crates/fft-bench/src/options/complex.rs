@@ -1,5 +1,7 @@
-//! Adapter for full N-point complex FFTs fed with real input, the way `SignalsmithStretch` uses them:
-//! `im = 0` before `forward`, a Hermitian mirror before `inverse`.
+//! Adapter that runs a full N-point complex FFT on one real signal: `im = 0` before `forward`, a Hermitian
+//! mirror before `inverse`. The transform costs the same whatever `im` holds, so the timing stands for the
+//! complex FFT itself. (`SignalsmithStretch` fills `im` with the right channel instead, so it transforms
+//! two real channels per call; that is its consumer's business, not the FFT's.)
 
 use crate::{bins, RealFft};
 
@@ -9,6 +11,11 @@ pub trait ComplexFft {
     fn size(&self) -> usize;
     fn forward(&self, re: &mut [f32], im: &mut [f32]);
     fn inverse(&self, re: &mut [f32], im: &mut [f32]);
+    /// See `RealFft::steps`; 0 if the transform cannot run step by step.
+    fn steps(&self) -> usize {
+        0
+    }
+    fn step(&self, _re: &mut [f32], _im: &mut [f32], _step: usize) {}
 }
 
 pub struct ComplexAsReal<F: ComplexFft> {
@@ -21,6 +28,11 @@ impl<F: ComplexFft> ComplexAsReal<F> {
     /// The wrapped transform, for timing it without the adapter copies.
     pub fn fft(&self) -> &F {
         &self.fft
+    }
+
+    /// The full N-point complex buffers the kernels and steps work on.
+    pub fn buffers(&self) -> (&[f32], &[f32]) {
+        (&self.re, &self.im)
     }
 }
 
@@ -72,5 +84,13 @@ impl<F: ComplexFft> RealFft for ComplexAsReal<F> {
     fn inverse_kernel(&mut self, _re: &[f32], _im: &[f32], _output: &mut [f32]) -> bool {
         self.fft.inverse(&mut self.re, &mut self.im);
         true
+    }
+
+    fn steps(&self) -> usize {
+        self.fft.steps()
+    }
+
+    fn run_step(&mut self, step: usize) {
+        self.fft.step(&mut self.re, &mut self.im, step);
     }
 }

@@ -98,3 +98,24 @@ fn copy_process_path_matches_analyser_bits() {
         assert_eq!(bits(copy.bins()), bits(original.bins()), "{name}");
     }
 }
+
+#[test]
+fn signalsmith_steps_compute_its_forward_transform_bit_for_bit() {
+    // The stepped path the Node runner times must compute exactly what the whole transform computes.
+    for n in SIZES {
+        let input = Signal::WhiteNoise.generate(n);
+        let (mut whole, mut stepped) = (SignalsmithFft::new(n), SignalsmithFft::new(n));
+        let (mut re, mut im) = (vec![0.0; bins(n)], vec![0.0; bins(n)]);
+        whole.prepare_forward(&input);
+        whole.forward_kernel(&input, &mut re, &mut im);
+        stepped.prepare_forward(&input);
+        assert_eq!(stepped.steps(), 1 + n.trailing_zeros() as usize, "n = {n}: bit reversal + log2(n) stages");
+        for step in 0..stepped.steps() {
+            stepped.run_step(step);
+        }
+        let bits = |values: &[f32]| values.iter().map(|value| value.to_bits()).collect::<Vec<u32>>();
+        let ((whole_re, whole_im), (stepped_re, stepped_im)) = (whole.buffers(), stepped.buffers());
+        assert_eq!(bits(stepped_re), bits(whole_re), "n = {n}: re");
+        assert_eq!(bits(stepped_im), bits(whole_im), "n = {n}: im");
+    }
+}

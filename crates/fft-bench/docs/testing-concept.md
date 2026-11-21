@@ -96,7 +96,7 @@ Every signal at every size, N = 256, 512, …, 16384 (`signals.rs`).
 | Platform                        | Role                                                | Tool | Status |
 |---------------------------------|-----------------------------------------------------|------|--------|
 | Native                          | development only; `realfft` uses NEON/AVX there     | Criterion (`benches/fft.rs`) | done |
-| Node (wasm32 + simd128)         | fast iteration; preliminary                         | `run.mjs` | planned |
+| Node (wasm32 + simd128)         | fast iteration; preliminary                         | `run.mjs` | done |
 | AudioWorklet in Chrome, Firefox, Safari | the numbers that count; Node missed the slowdown behind the revert | browser page (separate PR) | planned |
 
 - **What is timed:** each option's native call (`*_kernel`), never the adapter copies. Data is loaded
@@ -112,10 +112,11 @@ Every signal at every size, N = 256, 512, …, 16384 (`signals.rs`).
 - **Per stage:** time per `stage(level)` where an option has a stage-wise API (`signalsmith` spreads a
   frame over render quanta).
 - **Budget per consumer:** savings as % of the 128-frame render quantum (2.667 ms at 48 kHz) at each
-  consumer's real call pattern: analyser (N = 1024), time-stretch (N = 4096 per region and channel),
-  Convolver (N = 256, 2048, 16384).
-- **Real-input gain** is reported separately from the SIMD gain: `analyser` and `signalsmith` run full
-  complex transforms on real data, so ≈ 2× is available without SIMD.
+  consumer's real call pattern: analyser (N = 1024), time-stretch (N = 4096 per region, both channels in
+  one complex transform), Convolver (N = 256, 2048, 16384).
+- **Real-input gain** is reported separately from the SIMD gain: the `analyser` runs a full complex
+  transform on one real signal, so ≈ 2× is available there without SIMD. `signalsmith` already packs two
+  real channels into one complex transform, so it has no such reserve.
 
 ## Gates besides accuracy
 

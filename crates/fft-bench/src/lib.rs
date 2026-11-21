@@ -10,6 +10,7 @@ pub mod metrics;
 pub mod options;
 pub mod reference;
 pub mod signals;
+pub mod wasm;
 
 pub const SIZES: [usize; 7] = [256, 512, 1024, 2048, 4096, 8192, 16384];
 pub const MAX_SIZE: usize = SIZES[SIZES.len() - 1];
@@ -39,4 +40,10 @@ pub trait RealFft {
     fn inverse_kernel(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool {
         self.inverse(re, im, output)
     }
+    /// Steps of a forward transform for options whose consumer spreads it over render quanta; 0 if the
+    /// option has no stage-wise API. Run after `prepare_forward`, in order, one `run_step` per step.
+    fn steps(&self) -> usize {
+        0
+    }
+    fn run_step(&mut self, _step: usize) {}
 }

@@ -36,7 +36,7 @@ its own lockfile and `target/`.
 | Accuracy report (Markdown)    | `cargo run --release --example report > report.md`    | ready   |
 | Wasm build check              | `cargo check --target wasm32-unknown-unknown`         | ready   |
 | Native benchmarks (≈ 4 min)   | `cargo bench`, filtered: `cargo bench -- forward/rfft` | ready   |
-| Node benchmarks               | build the wasm module, then `node run.mjs <module>`   | planned |
+| Node benchmarks (≈ 30 s)      | `cargo build --release --target wasm32-unknown-unknown`, then `node run.mjs`; filtered: `node run.mjs --sizes 1024 --options rfft,realfft` | ready |
 | Binary size and `no_std` check| `size/size.sh`, `size/nostd-check.sh`                 | planned |
 
 Tests build with `opt-level = 3` (`[profile.test]`): the f64 reference DFT is O(n²) and too slow

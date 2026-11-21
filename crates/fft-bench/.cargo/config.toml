@@ -1,0 +1,4 @@
+# The engine's wasm build uses SIMD128 (packages/studio/core-wasm/build-wasm.sh); so does the harness.
+# Applies when cargo runs from this directory. A RUSTFLAGS environment variable would replace it.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

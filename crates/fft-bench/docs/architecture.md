@@ -26,7 +26,6 @@ How the harness is built and why. Parts marked *planned* do not exist yet.
   holds one module per FFT option, and `consumers` holds everything that runs the library.
 - **Cylinders:** crates outside the harness. `dsp`, `signalsmith` and `math` are production crates,
   only read; `realfft / rustfft` comes from crates.io.
-- **Dashed outline:** planned, does not exist yet.
 - **Not drawn:** the crate root (`RealFft`, `SIZES`, `bins`), used almost everywhere, and `libm`.
 
 ```mermaid
@@ -54,7 +53,7 @@ flowchart LR
             tests[tests/]
             report[examples/report]
             benches[benches/]
-            wasm[wasm exports + run.mjs<br/>planned]
+            wasm[src/wasm.rs exports<br/>+ run.mjs]
         end
     end
     reference --> metrics
@@ -71,8 +70,6 @@ flowchart LR
     metrics --> consumers
     contract --> consumers
     registry --> consumers
-    classDef planned stroke-dasharray: 5 5
-    class wasm planned
 ```
 
 Production crates (`dsp`, `signalsmith`) are only read. Everything that must not change in them
@@ -91,6 +88,9 @@ pub trait RealFft {
     fn forward_kernel(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]) { … }
     fn prepare_inverse(&mut self, re: &[f32], im: &[f32]) {}
     fn inverse_kernel(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool { … }
+    // Stage-wise options only (0 steps otherwise): forward in steps, one call per render quantum.
+    fn steps(&self) -> usize { 0 }
+    fn run_step(&mut self, step: usize) {}
 }
 ```
 
@@ -121,7 +121,7 @@ iterate over it; a new option is measured everywhere by adding one entry.
 |---------------|-----------------------------------------|---------|
 | `analyser`    | copy of `AudioAnalyser`, one compiled instance per size (`AnalyserFixed<N, HALF>`, fixed arrays like the original) | `AnalyserKernel` hides the size; `analyser_for(n)` picks the instance; `AnalyserFft` wraps it. A slice-based copy was ≈ 15 % slower, this one matches the original |
 | `rfft`        | `dsp::rfft::FftTables`, called directly | none; its API already matches. Built in zeroed heap memory, as `FftTables` has no constructor |
-| `signalsmith` | `signalsmith::fft::Fft`                 | `ComplexAsReal`: `im = 0` before forward, Hermitian mirror before inverse, as `SignalsmithStretch` does |
+| `signalsmith` | `signalsmith::fft::Fft`                 | `ComplexAsReal`: `im = 0` before forward, Hermitian mirror before inverse. `SignalsmithStretch` puts the right channel into `im` instead (two real channels per call); the FFT's cost is the same |
 | `reverted`    | `signalsmith/src/fft.rs` at `7998a6b64`, verbatim | `ComplexAsReal`; the used part of its `simd.rs` copied verbatim beside it |
 | `realfft`     | `realfft` 3.5 / `rustfft` 6.4           | interleaved `Complex<f32>` ↔ split; inverse scaled by 1/n; input copied (realfft uses it as scratch) |
 
@@ -156,6 +156,10 @@ magnitude steps; `metrics::contract_deviation` compares the bins with the analys
 | `std`             | yes | test harness, `realfft`; the options themselves stay `no_std`-compatible except `realfft` |
 | `extern crate alloc` | in `lib.rs` | lets the verbatim copy keep its `use alloc::vec::Vec` |
 | `realfft` on wasm32 | `wasm_simd` feature | rustfft only takes its SIMD128 path with it |
+| `crate-type`      | `lib` + `cdylib` | the wasm32 build becomes a loadable module with the exports of `src/wasm.rs` |
+| `.cargo/config.toml` | `+simd128` for wasm32 | as the engine's wasm build; no `RUSTFLAGS` to remember |
+| `[profile.release]` | opt-level 3, LTO, `panic = "abort"` | as the engine builds its DSP crates |
+| wasm imports      | none | `WebAssembly.instantiate(bytes, {})` works in Node and in an AudioWorklet |
 
 ## Dependencies
 
@@ -171,6 +175,5 @@ magnitude steps; `metrics::contract_deviation` compares the bins with the analys
 
 | Part                     | Purpose |
 |--------------------------|---------|
-| `src/wasm.rs` + `run.mjs`| import-free wasm exports (`setup`, `run`, `step`, per-stage timing) and the Node runner; the same module later runs in an AudioWorklet |
 | budget report            | savings as % of the render quantum per consumer |
 | `size/`                  | per-option stub modules, `size.sh`, `nostd-check.sh` |

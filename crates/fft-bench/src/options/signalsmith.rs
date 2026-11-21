@@ -22,4 +22,17 @@ impl ComplexFft for Fft {
     fn inverse(&self, re: &mut [f32], im: &mut [f32]) {
         Fft::inverse(self, re, im)
     }
+
+    /// As `SignalsmithStretch::frame_step` runs a forward FFT: bit reversal, then one stage per step.
+    fn steps(&self) -> usize {
+        1 + self.stages()
+    }
+
+    fn step(&self, re: &mut [f32], im: &mut [f32], step: usize) {
+        if step == 0 {
+            self.bit_reverse(re, im);
+        } else {
+            self.stage(re, im, step - 1, false);
+        }
+    }
 }
