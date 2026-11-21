@@ -18,7 +18,6 @@ No production code changes; the only edits outside the new crate are one `exclud
 | N = 256–8192                     | N = 256–16384                                                       | Convolver runs `dsp::rfft` at N = 16384          |
 | "≥ 4× vs. current scalar"        | Reported against each baseline                                      | Baselines differ by ≈ 2× before SIMD             |
 | Rel. RMS "≤ 2× current"          | ≤ 2× `dsp::rfft` (all N); ≤ 2× analyser copy (contract path)        | "current" is ambiguous with several baselines    |
-| `realfft` as a decision option   | Measured as a reference ceiling only                                | Homebrew-only policy, no `no_std` (baseline analysis, section 7) |
 | Browser page optional            | AudioWorklet run in three browsers required for the decision        | Node missed the slowdown that caused the revert  |
 | —                                | Reverted SIMD variant as an extra option                            | Tests the revert hypothesis directly             |
 | —                                | Real-input gain reported separately from the SIMD gain              | ≈ 2× without SIMD for analyser and `signalsmith` |
@@ -31,7 +30,7 @@ No production code changes; the only edits outside the new crate are one `exclud
 | `rfft`      | `dsp::rfft::FftTables`, called directly                               | yes     | no_std            |
 | `signalsmith` | `signalsmith::fft::Fft`, called directly, `im = 0` as its consumer does | yes   | no_std + alloc    |
 | `reverted`  | `signalsmith::fft` as of `7998a6b64` (strided gathers, stages 1–2 scalar) | yes | no_std + alloc    |
-| `realfft`   | `realfft` 3.5 over `rustfft` 6.4, `wasm_simd` on wasm32; reference only | yes   | std               |
+| `realfft`   | `realfft` 3.5 over `rustfft` 6.4, `wasm_simd` on wasm32; candidate, as the plan asks | yes | std   |
 | `proto`     | Day-2 SIMD kernel, added later through the same interface             | yes     | no_std            |
 
 `reverted` is a verbatim copy of the file at `7998a6b64` (project code, AGPL-3.0), kept in the harness
@@ -124,7 +123,7 @@ proposal (V = 16, P = 25%).
 | Binary size                  | One tiny module per option, engine flags (`+simd128`, opt-level 3, LTO, `wasm-opt -Oz`, same feature set as `build-wasm.sh`), gzip -9; delta vs an empty module |
 | Dependency footprint         | `cargo tree -e normal`: crate count and names                                            |
 | License                      | From crate metadata (done: MIT / MIT OR Apache-2.0)                                     |
-| Project policy               | Homebrew only (`plans/wasm-audio/README.md`); `realfft` fails it, measured as reference |
+| Project policy               | Homebrew only (`plans/wasm-audio/README.md`); open for `realfft`: exception for an FFT library? (baseline analysis, section 7) |
 
 For `realfft` the size delta includes `std` (allocator, panic machinery); reported separately.
 
@@ -157,18 +156,18 @@ Results go to `analysis/results/` (private), not into the crate.
 |----|----------------------------------------------------------|--------|-------|
 | 1  | Crate skeleton, workspace exclude, trait                 | 15 min | done  |
 | 2  | `analyser` copy + faithful-copy test, first signals      | 30 min | done  |
-| 3  | f64 reference, remaining signals, metrics, `rfft` option | 45 min |       |
-| 4  | `signalsmith` and `reverted` options                     | 30 min |       |
-| 5  | `realfft` option, accuracy tests, report example         | 30 min |       |
-| 6  | Allocation test                                          | 15 min |       |
+| 3  | f64 reference, remaining signals, metrics, `rfft` option | 45 min | done  |
+| 4  | `signalsmith` and `reverted` options                     | 30 min | done  |
+| 5  | `realfft` option, accuracy tests, report example         | 30 min | done  |
+| 6  | Allocation test                                          | 15 min | done  |
 | 7  | Criterion benches + environment record                   | 30 min |       |
 | 8  | wasm exports (import-free) + `run.mjs`, stage timing     | 60 min |       |
 | 9  | Budget-per-consumer report                               | 30 min |       |
 | 10 | Size stubs, `size.sh`, `nostd-check.sh`                  | 45 min |       |
 
 About 5.5 h against the plan's 3.5 h. The extra comes from the third baseline, the reverted variant
-and the budget report. If Day 1 runs short, 10 moves to Day 2 morning; it matters least, since
-`realfft` is reference only.
+and the budget report. If Day 1 runs short, 10 moves to Day 2 morning. Note that 10 delivers the
+binary size and `no_std` numbers the `realfft` decision needs.
 
 ## Out of scope here
 

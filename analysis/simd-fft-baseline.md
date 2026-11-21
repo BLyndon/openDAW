@@ -187,8 +187,28 @@ How the planned kernel differs from that attempt:
 
 `plans/wasm-audio/README.md` (lines 23–25): "All homebrew. No third-party DSP … licensing" and
 "Minimal dependencies". `stretch::fft` and `signalsmith::fft` state "no rustfft — dependency policy"
-in their headers. So `realfft`/`rustfft` very likely fails a policy gate regardless of speed, besides
-the `no_std` gap. It stays useful as a reference for what a mature SIMD FFT reaches.
+in their headers.
+
+This does **not** make the plan's library alternative outdated. Checked by date:
+
+| Evidence                                              | Date              | Relation to the plan |
+|-------------------------------------------------------|-------------------|----------------------|
+| Policy "All homebrew" / "Minimal dependencies"        | 2026-06-15        | older |
+| Engine `no_std` (`af8e8c3f7`)                         | 2026-06-17        | older |
+| "no rustfft" header in `stretch::fft`                 | 2026-07-10        | older |
+| "no rustfft" header in `signalsmith::fft` (`820b51ef6`) | 2026-07-12 12:17 | older, by 12 minutes |
+| **`future-plans/simd-fft.md`** (`58556bfc8`)          | **2026-07-12 12:29** | — |
+| `rustfft` leaves the workspace lockfile (`c1683fab1`) | 2026-07-14        | newer, but a side effect: it came from `audio-analyzer-rs` behind `stretch-lab`, which left the workspace |
+| `dsp::rfft`, `matchering::fft` homebrew               | 2026-08-25, 10-31 | newer; their commits say nothing about libraries |
+
+The plan is the newest statement on the question and weighs the policy itself ("minimal dependencies
+still favours our own small kernel … so measure before deciding"). No later commit or plan decides
+against the library. So `realfft` stays a candidate, as the plan asks. Two questions stay open for the
+maintainer and go into the report as gates, not as an exclusion:
+
+- **Policy:** does "no third-party DSP" allow an exception for an FFT library?
+- **`no_std`:** `rustfft` needs `std` (`Arc`); the engine has been `no_std` since before the plan,
+  which the plan does not address.
 
 ## 8. Consequences for the evaluation
 
@@ -208,8 +228,8 @@ Further:
   must be reported separately from the SIMD gain.
 - A new kernel needs a stage-wise API for `signalsmith`.
 - `future-plans/simd-fft.md` is outdated in: "the only FFT we have" (section 4), the consumers list
-  (sections 4–5), the stage order (section 2), the library alternative (section 7), and it does not
-  mention the reverted attempt (section 6).
+  (sections 4–5), the stage order (section 2), and it does not mention the reverted attempt
+  (section 6). Its library alternative still stands (section 7), with two open gate questions.
 
 ## 9. Accuracy of the baselines (measured)
 
