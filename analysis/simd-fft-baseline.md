@@ -78,6 +78,10 @@ transpose, leaving a single shuffle pass.
   `e^{−2πi·jk/N}`. The f64 reference DFT in the accuracy suite must use the same sign.
 - **Twiddle precision.** Twiddles are computed in f64 and rounded to f32 (lines 48–50). A new kernel
   should do the same to stay within the accuracy targets.
+- **The window is Blackman-Harris, not Blackman.** The coefficients 0.42323 / 0.49755 / 0.07922
+  (lines 52–56, mirroring TS `Window.create(Blackman, n)`) are the 3-term Blackman-Harris window
+  (≈ −67 dB sidelobes), not the classic Blackman 0.42 / 0.5 / 0.08 (≈ −58 dB). Only the name is off;
+  the output contract keeps these exact values. No effect on the FFT comparison.
 
 ## 4. A second FFT already exists: `dsp::rfft`
 

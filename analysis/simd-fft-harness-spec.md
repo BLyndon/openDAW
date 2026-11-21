@@ -156,8 +156,8 @@ Results go to `analysis/results/` (private), not into the crate.
 | #  | Commit                                                   | Est.   | State |
 |----|----------------------------------------------------------|--------|-------|
 | 1  | Crate skeleton, workspace exclude, trait                 | 15 min | done  |
-| 2  | `analyser` copy + faithful-copy test                     | 30 min | done  |
-| 3  | f64 reference, signals, metrics, `rfft` option           | 45 min |       |
+| 2  | `analyser` copy + faithful-copy test, first signals      | 30 min | done  |
+| 3  | f64 reference, remaining signals, metrics, `rfft` option | 45 min |       |
 | 4  | `signalsmith` and `reverted` options                     | 30 min |       |
 | 5  | `realfft` option, accuracy tests, report example         | 30 min |       |
 | 6  | Allocation test                                          | 15 min |       |

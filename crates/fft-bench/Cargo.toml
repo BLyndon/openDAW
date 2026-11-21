@@ -6,3 +6,8 @@ publish = false
 
 [lib]
 crate-type = ["lib"]
+
+[dependencies]
+dsp = {path = "../dsp"}
+math = {path = "../math"}
+libm = "0.2"
