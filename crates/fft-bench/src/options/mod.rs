@@ -17,6 +17,9 @@ pub enum Role {
 pub struct Entry {
     pub name: &'static str,
     pub role: Role,
+    /// A full N-point complex transform: one call can carry two real channels (`re` and `im`), as
+    /// `SignalsmithStretch` does. A real transform needs one call per channel.
+    pub complex: bool,
     pub create: fn(usize) -> Box<dyn RealFft>
 }
 
@@ -26,9 +29,9 @@ fn create<T: RealFft + 'static>(n: usize) -> Box<dyn RealFft> {
 
 /// Every option the harness measures. The Day-2 prototype joins `realfft` as `Role::Candidate`.
 pub const ALL: [Entry; 5] = [
-    Entry { name: "analyser", role: Role::Baseline, create: create::<analyser::AnalyserFft> },
-    Entry { name: "rfft", role: Role::Baseline, create: create::<rfft::RfftOption> },
-    Entry { name: "signalsmith", role: Role::Baseline, create: create::<signalsmith::SignalsmithFft> },
-    Entry { name: "reverted", role: Role::Baseline, create: create::<reverted::RevertedFft> },
-    Entry { name: "realfft", role: Role::Candidate, create: create::<realfft::RealFftOption> }
+    Entry { name: "analyser", role: Role::Baseline, complex: true, create: create::<analyser::AnalyserFft> },
+    Entry { name: "rfft", role: Role::Baseline, complex: false, create: create::<rfft::RfftOption> },
+    Entry { name: "signalsmith", role: Role::Baseline, complex: true, create: create::<signalsmith::SignalsmithFft> },
+    Entry { name: "reverted", role: Role::Baseline, complex: true, create: create::<reverted::RevertedFft> },
+    Entry { name: "realfft", role: Role::Candidate, complex: false, create: create::<realfft::RealFftOption> }
 ];

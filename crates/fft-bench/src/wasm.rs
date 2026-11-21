@@ -42,6 +42,12 @@ pub extern "C" fn option_name_len(option: u32) -> u32 {
     ALL[option as usize].name.len() as u32
 }
 
+/// 1 if the option is a full complex transform that can carry two real channels per call.
+#[no_mangle]
+pub extern "C" fn option_is_complex(option: u32) -> u32 {
+    ALL[option as usize].complex as u32
+}
+
 /// Builds `option` at size `n` with white noise as input and a forward spectrum ready for the inverse.
 /// Allocates; never call it inside a timed region.
 #[no_mangle]

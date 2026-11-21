@@ -53,7 +53,7 @@ flowchart LR
             tests[tests/]
             report[examples/report]
             benches[benches/]
-            wasm[src/wasm.rs exports<br/>+ run.mjs]
+            wasm[src/wasm.rs exports<br/>+ run.mjs + budget.mjs]
         end
     end
     reference --> metrics
@@ -106,7 +106,8 @@ pub trait RealFft {
 
 ## Registry and roles
 
-`options::ALL` lists every option once: name, role and a `create` function pointer
+`options::ALL` lists every option once: name, role, whether it is a full complex transform (`complex`:
+one call can carry two real channels, which the budget model uses) and a `create` function pointer
 (`create::<T>`, no closures, so the list is a `const`). Tests, the report and the planned benchmarks
 iterate over it; a new option is measured everywhere by adding one entry.
 
@@ -175,5 +176,4 @@ magnitude steps; `metrics::contract_deviation` compares the bins with the analys
 
 | Part                     | Purpose |
 |--------------------------|---------|
-| budget report            | savings as % of the render quantum per consumer |
 | `size/`                  | per-option stub modules, `size.sh`, `nostd-check.sh` |

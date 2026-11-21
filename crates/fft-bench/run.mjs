@@ -5,10 +5,10 @@ import fs from "node:fs"
 import os from "node:os"
 import crypto from "node:crypto"
 import {execFileSync} from "node:child_process"
+import {budgetReport, RENDER_QUANTUM_NS} from "./budget.mjs"
 
 const DEFAULT_MODULE = "target/wasm32-unknown-unknown/release/fft_bench.wasm"
 const SIZES = [256, 512, 1024, 2048, 4096, 8192, 16384]
-const RENDER_QUANTUM_NS = 128 / 48000 * 1e9
 const WARM_UP_CALLS = 200
 const SINGLE_CALLS = 2000
 const STEP_REPETITIONS = 500
@@ -33,7 +33,8 @@ const {instance} = await WebAssembly.instantiate(bytes, {})
 const wasm = instance.exports
 const optionName = (option) => new TextDecoder().decode(
     new Uint8Array(wasm.memory.buffer, wasm.option_name_ptr(option), wasm.option_name_len(option)))
-const options = Array.from({length: wasm.option_count()}, (_, option) => ({option, name: optionName(option)}))
+const options = Array.from({length: wasm.option_count()},
+    (_, option) => ({option, name: optionName(option), complex: wasm.option_is_complex(option) === 1}))
     .filter(({name}) => optionFilter === undefined || optionFilter.includes(name))
 
 const now = () => Number(process.hrtime.bigint())
@@ -199,3 +200,10 @@ if (stepped.length > 0) {
     stepped.forEach((result) => console.log(`| ${result.name} | ${result.n} | ${result.steps.length} | `
         + `${microseconds(Math.max(...result.steps))} | ${microseconds(result.steps.reduce((sum, value) => sum + value, 0))} |`))
 }
+
+const times = (name, n) => {
+    const result = results.find((entry) => entry.name === name && entry.n === n)
+    return result === undefined ? undefined : {forward: result.forward.median, inverse: result.inverse?.median}
+}
+console.log()
+budgetReport(options, times).forEach((line) => console.log(line))

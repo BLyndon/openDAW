@@ -35,6 +35,6 @@ cargo run --release --example report > report.md     # accuracy tables as Markdo
 | Allocation test                                                   | done                 |
 | Native benchmarks (Criterion), environment record                 | done                 |
 | Wasm exports and Node runner, per-stage timing                    | done                 |
-| Budget-per-consumer report                                        | planned              |
+| Budget-per-consumer report                                        | done                 |
 | Binary size and `no_std` checks                                   | planned              |
 | AudioWorklet page (Chrome, Firefox, Safari)                       | planned, separate PR |

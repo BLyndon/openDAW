@@ -111,9 +111,16 @@ Every signal at every size, N = 256, 512, …, 16384 (`signals.rs`).
 - **Statistics:** median of many warm runs, 95 % confidence interval, target half-width ≤ 5 %.
 - **Per stage:** time per `stage(level)` where an option has a stage-wise API (`signalsmith` spreads a
   frame over render quanta).
-- **Budget per consumer:** savings as % of the 128-frame render quantum (2.667 ms at 48 kHz) at each
-  consumer's real call pattern: analyser (N = 1024), time-stretch (N = 4096 per region, both channels in
-  one complex transform), Convolver (N = 256, 2048, 16384).
+- **Budget per consumer** (`budget.mjs`, printed by `run.mjs`): share of the 128-frame render quantum
+  (2.667 ms at 48 kHz) that each consumer's FFTs take, at its real call pattern, for every option able
+  to serve it: analyser (one forward, N = 1024, every 8 quanta), time-stretch (forward + inverse,
+  N = 4096, every 8 quanta per region, both channels in one complex call, for 1, 3, 5 and 16 regions),
+  Convolver (per channel: N = 256 forward + inverse every quantum, N = 2048 every 8, N = 16384 every 64).
+  A complex option carries two real channels per call, a real option needs one per channel. Reported:
+  average over the repeat interval, worst case (all events in one quantum; not for the time-stretch,
+  which spreads its steps), and the difference to the option the consumer uses today. Not included: the
+  pack, unpack and window work around the FFT. `budget.test.mjs` checks the model against hand-computed
+  values.
 - **Real-input gain** is reported separately from the SIMD gain: the `analyser` runs a full complex
   transform on one real signal, so ≈ 2× is available there without SIMD. `signalsmith` already packs two
   real channels into one complex transform, so it has no such reserve.
