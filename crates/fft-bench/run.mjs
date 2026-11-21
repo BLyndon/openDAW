@@ -6,6 +6,7 @@ import os from "node:os"
 import crypto from "node:crypto"
 import {execFileSync} from "node:child_process"
 import {budgetReport, RENDER_QUANTUM_NS} from "./budget.mjs"
+import {listOptions} from "./measure.mjs"
 import {cell, environmentTable, microseconds, sizeTable, stepTable} from "./markdown.mjs"
 import {CI_TARGET, MAX_BATCHES, median, percentile, throughput, WARM_UP_CALLS} from "./stats.mjs"
 
@@ -26,11 +27,7 @@ const optionFilter = argument("--options")?.split(",")
 const bytes = fs.readFileSync(modulePath)
 const {instance} = await WebAssembly.instantiate(bytes, {})
 const wasm = instance.exports
-const optionName = (option) => new TextDecoder().decode(
-    new Uint8Array(wasm.memory.buffer, wasm.option_name_ptr(option), wasm.option_name_len(option)))
-const options = Array.from({length: wasm.option_count()},
-    (_, option) => ({option, name: optionName(option), complex: wasm.option_is_complex(option) === 1}))
-    .filter(({name}) => optionFilter === undefined || optionFilter.includes(name))
+const options = listOptions(wasm).filter(({name}) => optionFilter === undefined || optionFilter.includes(name))
 
 const now = () => Number(process.hrtime.bigint())
 // The cost of one timer pair around an empty call; included in every single-call value below.
