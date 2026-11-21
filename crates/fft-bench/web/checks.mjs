@@ -66,3 +66,7 @@ export const fetchModuleBytes = async (fetchUrl, url) => {
     }
     return response.arrayBuffer()
 }
+
+export const headerLine = ({browser, host, tickNs, sha256}) => [`${browser.name} ${browser.version}`, host?.cpu, host?.os,
+    host === undefined ? undefined : `git ${host.git}`, tickNs === undefined ? undefined : `timer tick ${(tickNs / 1000).toFixed(1)} µs`,
+    sha256 === undefined ? undefined : `module ${sha256}`].filter((part) => part !== undefined).join(" · ")

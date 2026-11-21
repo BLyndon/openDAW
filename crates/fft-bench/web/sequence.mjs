@@ -1,5 +1,4 @@
-// The browser page's fixed step order: a step runs only after the one before it succeeded, and any new
-// result invalidates everything after it, so the report never mixes old and new numbers.
+// The browser page's fixed step order; a new result invalidates every later step.
 export const STEPS = [
     {id: "environment", title: "Environment",
         purpose: "Can this browser measure at all: cross-origin isolated, a fine timer, SIMD128?",

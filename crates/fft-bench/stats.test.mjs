@@ -44,3 +44,15 @@ test("throughput sizes batches from the estimate and the batch length", () => {
     throughput(run, now, BATCH_NS)
     assert.ok(counts.slice(1).every((count) => count === Math.ceil(BATCH_NS / 150)))
 })
+
+test("CI of a median at or below zero is infinite, so the point is flagged", () => {
+    assert.equal(ciHalfWidth([-3, -1, 0, 1, 2]), Infinity)
+    assert.equal(ciHalfWidth([-5, -4, -3, -2, -1]), Infinity)
+})
+
+test("throughput ends when the warm-up is shorter than one timer tick", () => {
+    let clock = 0
+    const result = throughput(() => {}, () => clock, BATCH_NS)
+    assert.equal(result.batches, 120)
+    assert.equal(result.ci, Infinity)
+})

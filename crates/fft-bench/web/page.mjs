@@ -3,7 +3,7 @@ import {CONSUMERS, consumerLoad, REGION_COUNTS, budgetReport} from "../budget.mj
 import {cell, sizeTable, stepTable} from "../markdown.mjs"
 import {CI_TARGET} from "../stats.mjs"
 import {barChart, lineChart} from "./charts.mjs"
-import {batchNsFor, browserName, evaluateEnvironment, fetchHost, stepOutcome} from "./checks.mjs"
+import {batchNsFor, browserName, evaluateEnvironment, fetchHost, headerLine, stepOutcome} from "./checks.mjs"
 import {createClient} from "./client.mjs"
 import {buildReport, reportFileName} from "./report.mjs"
 import {createSequence, runStep, STEPS} from "./sequence.mjs"
@@ -153,8 +153,7 @@ const steps = {
         const host = await fetchHost()
         const evaluated = evaluateEnvironment(checks)
         const reasons = [...evaluated.reasons, ...host === undefined ? ["the /environment endpoint is missing: serve the page with `node web/serve.mjs`"] : []]
-        document.getElementById("environment").textContent = [`${browser.name} ${browser.version}`, host?.cpu, host?.os,
-            `git ${host?.git ?? "unknown"}`, `timer tick ${(checks.tickNs / 1000).toFixed(1)} µs`].filter((part) => part !== undefined).join(" · ")
+        document.getElementById("environment").textContent = headerLine({browser, host, tickNs: checks.tickNs})
         sections.get("environment").querySelector(".results").innerHTML = markdownToHtml(["| Check | Value |", "|---|---|",
             `| cross-origin isolated | ${checks.isolated ? "yes" : "no"} |`, `| timer tick | ${(checks.tickNs / 1000).toFixed(1)} µs |`,
             `| SIMD128 | ${checks.simd ? "yes" : "no"} |`, `| batch length | ${(batchNsFor(checks.tickNs) / 1e6).toFixed(0)} ms |`])
@@ -163,7 +162,8 @@ const steps = {
     module: async () => {
         const loaded = await request("load", {url: "/fft_bench.wasm"})
         const stale = (await fetchHost())?.moduleStale === true
-        document.getElementById("environment").textContent += ` · module ${loaded.sha256}`
+        const {host, tickNs} = sequence.data("environment")
+        document.getElementById("environment").textContent = headerLine({browser, host, tickNs, sha256: loaded.sha256})
         sections.get("module").querySelector(".results").innerHTML = markdownToHtml(["| Option | Registry slot | Complex |", "|---|---|---|",
             ...loaded.options.map((option) => `| ${option.name} | ${option.option} | ${option.complex ? "yes" : "no"} |`)])
             + `<p>${loaded.bytes} bytes, sha256 ${escape(loaded.sha256)}</p>`

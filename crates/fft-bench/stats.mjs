@@ -18,9 +18,12 @@ export const percentile = (values, fraction) => {
     return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))]
 }
 
-// 95 % bootstrap confidence interval of the median, as a half-width relative to the median.
-// Seeded xorshift32, so a rerun on the same data gives the same interval.
+// 95 % bootstrap CI half-width relative to the median, seeded so a rerun gives the same interval.
 export const ciHalfWidth = (values) => {
+    const center = median(values)
+    if (center <= 0) {
+        return Infinity
+    }
     let state = BOOTSTRAP_SEED
     const random = () => {
         state ^= state << 13
@@ -30,19 +33,17 @@ export const ciHalfWidth = (values) => {
     }
     const medians = Array.from({length: BOOTSTRAP_SAMPLES}, () =>
         median(Array.from({length: values.length}, () => values[Math.floor(random() * values.length)])))
-    return (percentile(medians, 0.975) - percentile(medians, 0.025)) / 2 / median(values)
+    return (percentile(medians, 0.975) - percentile(medians, 0.025)) / 2 / center
 }
 
-// Kernel cost from batches run inside wasm: each batch runs `count` calls once with and once without the
-// kernel; the difference per call removes the preparation and the timer. Batches are added until the
-// confidence interval is within the target or the cap is reached.
+// Per-call kernel cost: batches with minus without the kernel, added until the CI meets the target or the cap.
 export const throughput = (run, now, batchNs) => {
     const timeBatch = (count, withKernel) => {
         const start = now()
         run(count, withKernel)
         return now() - start
     }
-    const estimate = timeBatch(WARM_UP_CALLS, 1) / WARM_UP_CALLS
+    const estimate = Math.max(1, timeBatch(WARM_UP_CALLS, 1) / WARM_UP_CALLS)
     const count = Math.max(1, Math.ceil(batchNs / estimate))
     const samples = []
     const addBatches = (batches) => {

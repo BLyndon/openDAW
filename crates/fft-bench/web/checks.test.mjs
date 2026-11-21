@@ -1,7 +1,7 @@
 // Checks of the browser environment checks and step outcomes: node --test web/checks.test.mjs
 import {test} from "node:test"
 import assert from "node:assert/strict"
-import {batchNsFor, browserName, evaluateEnvironment, fetchHost, fetchModuleBytes, measureTick, simdSupported, stepOutcome} from "./checks.mjs"
+import {batchNsFor, browserName, evaluateEnvironment, fetchHost, fetchModuleBytes, headerLine, measureTick, simdSupported, stepOutcome} from "./checks.mjs"
 
 const CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 const FIREFOX = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0"
@@ -80,4 +80,12 @@ test("fetchHost: a missing, failing or non-JSON endpoint gives undefined", async
 test("fetchModuleBytes: a missing module names the rebuild command", async () => {
     await assert.rejects(fetchModuleBytes(async () => ({ok: false, status: 404}), "/fft_bench.wasm"),
         /cargo build --release --target wasm32-unknown-unknown/)
+})
+
+test("headerLine: one line from what is known so far, never repeated", () => {
+    const browser = {name: "Chrome", version: "156.0"}
+    assert.equal(headerLine({browser}), "Chrome 156.0")
+    const host = {cpu: "Apple M1", os: "Darwin 27.0.0", git: "413b40c1b"}
+    assert.equal(headerLine({browser, host, tickNs: 5000, sha256: "8a661f46083b"}),
+        "Chrome 156.0 · Apple M1 · Darwin 27.0.0 · git 413b40c1b · timer tick 5.0 µs · module 8a661f46083b")
 })

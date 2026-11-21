@@ -1,5 +1,4 @@
-// Dependency-free SVG charts. Colours come from CSS custom properties (--series-N, --grid, --text-muted), so
-// the page's light and dark themes apply; every mark has a hover title, and the page shows a table beside it.
+// Dependency-free SVG charts, coloured by CSS custom properties (--series-N, --grid, --text-muted).
 const WIDTH = 640
 const HEIGHT = 320
 const MARGIN = {left: 64, right: 32, top: 40, bottom: 44}

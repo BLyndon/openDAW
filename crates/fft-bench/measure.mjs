@@ -16,8 +16,7 @@ export const measureThroughput = (wasm, {option, n, direction, now, batchNs}) =>
     return throughput(direction === "forward" ? wasm.run_forward : wasm.run_inverse, now, batchNs)
 }
 
-// Step k as the kernel of a batch whose preparation is the forward preparation and steps 0..k-1, so the
-// difference with and without the kernel is step k alone, as its consumer runs it after the steps before.
+// Step k is the kernel of a batch prepared by the forward preparation and steps 0..k-1.
 export const measureSteps = (wasm, {option, n, now, batchNs}) => {
     wasm.setup(option, n)
     return Array.from({length: wasm.steps()}, (_, kernelStep) => throughput((count, withKernel) => {

@@ -195,8 +195,8 @@ The wasm module is driven from JavaScript twice: by `run.mjs` in Node and by the
 the statistics, the measurements, the Markdown tables and the budget model, so a browser report and
 `node.md` are built by the same code and compare section by section.
 
-**How to read the diagram:** arrow A → B means B imports A. Boxes on the left are shared by both runners;
-`web/` holds what only the page uses.
+**How to read the diagram:** arrow A → B means B imports A; the one exception is `worker.mjs`, which the
+page starts as a Worker. Boxes on the left are shared by both runners; `web/` holds what only the page uses.
 
 ```mermaid
 flowchart LR
@@ -214,6 +214,7 @@ flowchart LR
     subgraph web[web/]
         serve[serve.mjs<br/>COOP/COEP server]
         worker[worker.mjs]
+        client[client.mjs]
         page[page.mjs + index.html]
         checks[checks.mjs]
         sequence[sequence.mjs]
@@ -222,6 +223,11 @@ flowchart LR
     end
     stats --> measure
     stats --> markdown
+    stats --> report
+    stats --> checks
+    stats --> page
+    stats --> run
+    markdown --> page
     module --> run
     module --> worker
     measure --> run
@@ -238,6 +244,7 @@ flowchart LR
     sequence --> page
     charts --> page
     report --> page
+    client --> page
     worker --> page
 ```
 
@@ -245,6 +252,7 @@ flowchart LR
 |---|---|
 | `serve.mjs` | serves an allowlist of files on `127.0.0.1` with `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, so browsers give the page their finest timer; `/environment` reports git hash, CPU, OS and whether the module is older than its sources |
 | `worker.mjs` | loads the module and runs every measurement off the main thread; also measures the timer tick and checks isolation and SIMD128 there, because that is the timer the measurements use |
+| `client.mjs` | request and answer over the Worker by id; a Worker that fails to load rejects every pending request |
 | `page.mjs` | runs the seven steps of `sequence.mjs` in order, renders tables and charts, writes the report |
 | `checks.mjs` | timer tick, batch length `max(10 ms, 500 × tick)`, SIMD128 probe, browser name, step outcomes |
 | `sequence.mjs` | the fixed step order: a step runs only after the one before passed; any new result resets every later step |
@@ -259,4 +267,6 @@ maintainer.
 
 **Why steps are timed by difference.** A single step (0.4–24 µs) is near the browser tick. Step k is
 timed as a batch of "preparation + steps 0..k−1" with and without step k, so each step runs on the data
-its predecessors produced and needs no extra Rust export.
+its predecessors produced and needs no extra Rust export. Unlike throughput, whose batches run inside
+wasm, a step batch loops in JavaScript, so step k carries one extra JS→wasm call (about 10 ns), a few
+percent at most on the smallest steps.

@@ -1,5 +1,4 @@
-// The browser run as Markdown in the node.md format, so browser and Node results compare section by section.
-// Browser timers are too coarse for single calls, so that table is left out and steps come from batches.
+// The browser run as Markdown in the node.md format, without the single-call table.
 import {budgetReport, RENDER_QUANTUM_NS} from "../budget.mjs"
 import {cell, environmentTable, sizeTable, stepTable} from "../markdown.mjs"
 import {CI_TARGET, MAX_BATCHES} from "../stats.mjs"

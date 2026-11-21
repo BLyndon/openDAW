@@ -1,6 +1,4 @@
-// Serves the browser page cross-origin isolated, so browsers give it their finest timer.
-// Build first: cargo build --release --target wasm32-unknown-unknown
-// Usage (from crates/fft-bench): node web/serve.mjs [--port 8080]
+// Serves the browser page cross-origin isolated: node web/serve.mjs [--port 8080], after the wasm build.
 import fs from "node:fs"
 import http from "node:http"
 import path from "node:path"
@@ -26,26 +24,38 @@ const routes = (root, modulePath) => {
 export const createServer = ({root, modulePath, sourceDirs}) => {
     const files = routes(root, modulePath)
     return http.createServer((request, response) => {
-        if (request.url === "/environment") {
+        const route = new URL(request.url, "http://localhost").pathname
+        if (route === "/environment") {
             const body = JSON.stringify({git: gitRevision(), ...hostInfo(), module: path.relative(root, modulePath),
                 moduleStale: moduleIsStale(modulePath, sourceDirs)})
             response.writeHead(200, {...ISOLATION, "Content-Type": "application/json"}).end(body)
             return
         }
-        const file = files.get(request.url)
+        const file = files.get(route)
         if (file === undefined || !fs.existsSync(file)) {
             response.writeHead(404, ISOLATION).end("not found")
             return
         }
         response.writeHead(200, {...ISOLATION, "Content-Type": CONTENT_TYPES[path.extname(file)] ?? "application/octet-stream"})
-        fs.createReadStream(file).pipe(response)
+        fs.createReadStream(file).on("error", () => response.destroy()).pipe(response)
     })
+}
+
+export const portFrom = (argv) => {
+    const index = argv.indexOf("--port")
+    if (index < 0) {
+        return DEFAULT_PORT
+    }
+    const port = Number(argv[index + 1])
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+        throw new Error("--port needs a number between 1 and 65535")
+    }
+    return port
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-    const portIndex = process.argv.indexOf("--port")
-    const port = portIndex > 0 ? Number(process.argv[portIndex + 1]) : DEFAULT_PORT
+    const port = portFrom(process.argv)
     const sourceDirs = ["src", "../dsp/src", "../math/src", "../signalsmith/src"].map((directory) => path.join(root, directory))
     const server = createServer({root, modulePath: path.join(root, "target/wasm32-unknown-unknown/release/fft_bench.wasm"), sourceDirs})
     server.listen(port, "127.0.0.1", () => console.log(`fft-bench page: http://127.0.0.1:${port}/`))

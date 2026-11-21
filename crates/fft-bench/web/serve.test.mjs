@@ -6,7 +6,7 @@ import os from "node:os"
 import path from "node:path"
 import http from "node:http"
 import {moduleIsStale} from "../host.mjs"
-import {createServer} from "./serve.mjs"
+import {createServer, portFrom} from "./serve.mjs"
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "fft-bench-serve-"))
 fs.mkdirSync(path.join(root, "web"))
@@ -68,4 +68,16 @@ test("a module older than a source file is stale", () => {
 test("the shipped page says how to serve it when its script cannot run", () => {
     const page = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8")
     assert.match(page, /<div id="steps">[^<]*node web\/serve\.mjs[^<]*<\/div>/)
+})
+
+test("query strings do not change the route", async () => {
+    assert.equal((await get("/?run=1")).status, 200)
+    assert.equal((await get("/environment?fresh")).status, 200)
+})
+
+test("portFrom: the given port, the default without one, an error for a bad one", () => {
+    assert.equal(portFrom(["node", "serve.mjs"]), 8080)
+    assert.equal(portFrom(["node", "serve.mjs", "--port", "8090"]), 8090)
+    assert.throws(() => portFrom(["node", "serve.mjs", "--port"]), /--port needs a number/)
+    assert.throws(() => portFrom(["node", "serve.mjs", "--port", "abc"]), /--port needs a number/)
 })
