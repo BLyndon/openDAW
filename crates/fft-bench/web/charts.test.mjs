@@ -59,3 +59,11 @@ test("barChart: unmeasured bars are left out", () => {
         yLabel: "%", unit: " %"})
     assert.equal(count(svg, /<path class="bar"/g), 1)
 })
+
+test("barChart: the legend lists only options that have a bar", () => {
+    const groups = [{name: "Time-stretch", bars: [{name: "analyser", slot: 1, value: undefined}, {name: "rfft", slot: 2, value: 0.6},
+        {name: "realfft", slot: 5, value: 0.1}]}]
+    const svg = barChart({groups, yLabel: "%", unit: " %"})
+    assert.equal(count(svg, /class="legend-item"/g), 2)
+    assert.doesNotMatch(svg, />analyser</)
+})

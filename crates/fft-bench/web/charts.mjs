@@ -85,7 +85,8 @@ export const barChart = ({groups, yLabel, unit}) => {
     const barsPerGroup = Math.max(...groups.map(({bars}) => bars.length))
     const groupWidth = (plotRight - plotLeft - GROUP_GAP * (groups.length - 1)) / groups.length
     const barWidth = (groupWidth - BAR_GAP * (barsPerGroup - 1)) / barsPerGroup
-    const legendItems = [...new Map(groups.flatMap(({bars}) => bars).map((bar) => [bar.name, bar])).values()]
+    const legendItems = [...new Map(groups.flatMap(({bars}) => bars).filter(({value}) => value !== undefined)
+        .map((bar) => [bar.name, bar])).values()]
     const content = groups.map(({name, bars}, groupIndex) => {
         const groupLeft = plotLeft + groupIndex * (groupWidth + GROUP_GAP)
         const marks = bars.map((bar, barIndex) => bar.value === undefined ? ""
