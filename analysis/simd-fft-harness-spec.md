@@ -163,7 +163,7 @@ Results go to `analysis/results/` (private), not into the crate.
 | 7  | Criterion benches + environment record                   | 30 min | done  |
 | 8  | wasm exports (import-free) + `run.mjs`, stage timing     | 60 min | done  |
 | 9  | Budget-per-consumer report                               | 30 min | done  |
-| 10 | Size stubs, `size.sh`, `nostd-check.sh`                  | 45 min |       |
+| 10 | Size stubs, `size.sh`, `nostd-check.sh`                  | 45 min | done  |
 
 About 5.5 h against the plan's 3.5 h. The extra comes from the third baseline, the reverted variant
 and the budget report. If Day 1 runs short, 10 moves to Day 2 morning. Note that 10 delivers the
