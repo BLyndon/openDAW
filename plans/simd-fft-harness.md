@@ -17,13 +17,15 @@ Answer two questions with measured numbers:
 
 ## Scope
 
-**In**
+### In
 
 - Benchmark and accuracy harness (native + Node), no change to `AudioAnalyser`
 - Comparison: current scalar radix-2 vs. `realfft`/`rustfft` vs. a prototype SIMD kernel
 - Wasm binary size impact of each option
-- Optional: a static browser page running the same harness in Chrome, Firefox and Safari
-  **Out**
+- A static browser page running the same harness in Chrome, Firefox and Safari
+
+### Out
+
 - Replacing `AudioAnalyser::fft` (follow-up, after a decision)
 - Phase-vocoder time-stretch, fast convolution
 - The TypeScript `lib-dsp` FFT
