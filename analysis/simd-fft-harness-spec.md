@@ -162,7 +162,7 @@ Results go to `analysis/results/` (private), not into the crate.
 | 6  | Allocation test                                          | 15 min | done  |
 | 7  | Criterion benches + environment record                   | 30 min | done  |
 | 8  | wasm exports (import-free) + `run.mjs`, stage timing     | 60 min | done  |
-| 9  | Budget-per-consumer report                               | 30 min |       |
+| 9  | Budget-per-consumer report                               | 30 min | done  |
 | 10 | Size stubs, `size.sh`, `nostd-check.sh`                  | 45 min |       |
 
 About 5.5 h against the plan's 3.5 h. The extra comes from the third baseline, the reverted variant
