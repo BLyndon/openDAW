@@ -23,6 +23,7 @@ cargo run --release --example report > report.md     # accuracy tables as Markdo
 | [Testing concept](docs/testing-concept.md) | questions, options and roles, test levels, signals, metrics, thresholds and their origin |
 | [Workflow](docs/workflow.md)               | evaluation flow, commands, adding an option, taking a measurement                        |
 | [Architecture](docs/architecture.md)       | modules, the `RealFft` interface, registry, adapters, build setup, dependencies          |
+| [Runbook](docs/runbook.md)                 | a complete measurement run step by step: commands, expected results, troubleshooting      |
 
 ## Status
 
