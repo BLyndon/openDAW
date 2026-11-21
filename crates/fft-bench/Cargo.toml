@@ -11,3 +11,7 @@ crate-type = ["lib"]
 dsp = {path = "../dsp"}
 math = {path = "../math"}
 libm = "0.2"
+
+# The f64 reference DFT is O(n²): ~134 M multiply-adds per signal at n = 16384, too slow unoptimised.
+[profile.test]
+opt-level = 3

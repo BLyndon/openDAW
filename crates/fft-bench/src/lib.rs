@@ -2,10 +2,13 @@
 //! `dsp::rfft`) and candidate replacements behind one interface. Standalone, not part of the engine build.
 
 pub mod contract;
+pub mod metrics;
 pub mod options;
+pub mod reference;
 pub mod signals;
 
 pub const SIZES: [usize; 7] = [256, 512, 1024, 2048, 4096, 8192, 16384];
+pub const MAX_SIZE: usize = SIZES[SIZES.len() - 1];
 
 /// Bins of a real FFT of size `n`, DC to Nyquist inclusive.
 pub const fn bins(n: usize) -> usize {
