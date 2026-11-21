@@ -9,23 +9,23 @@ FFTs found later. No code was changed.
 Requirements from `future-plans/simd-fft.md` against the three FFTs on the render path and the library
 candidate. `realfft`/`rustfft` from the crate sources (realfft 3.5.1, rustfft 6.4.1).
 
-| Requirement              | `dsp::analyser`              | `dsp::rfft`                  | `signalsmith::fft`                  | `realfft`/`rustfft`        |
-|--------------------------|------------------------------|------------------------------|-------------------------------------|----------------------------|
-| Real-input (N/2 + twist) | no, full N complex           | yes                          | no; two real channels per complex FFT | yes                        |
-| Layout                   | split re/im                  | split re/im                  | split re/im                         | interleaved `Complex<f32>` |
-| Sizes                    | fixed 1024                   | any power of two             | any power of two                    | any                        |
-| Inverse                  | no                           | yes, identity round trip     | yes, scaled 1/N                     | yes, unnormalized (×N)     |
-| Stage-wise API           | no                           | no                           | yes (`bit_reverse`/`stage`/`scale`) | no                         |
-| Hann helpers             | no (Blackman inline)         | no                           | no (Kaiser OLA window separate)     | no                         |
-| Explicit SIMD128         | no                           | no                           | no (tried and reverted, section 6)  | yes, `wasm_simd` feature   |
-| No allocation after plan | yes                          | yes                          | yes                                 | yes, with caller scratch   |
-| `no_std` (engine, talc)  | yes                          | yes                          | yes (`alloc`)                       | no, needs `std` (`Arc`)    |
-| Twiddles                 | f64 → f32, strided           | f64 → f32, strided           | f64 → f32, strided                  | per plan                   |
-| Project policy           | homebrew                     | homebrew                     | homebrew                            | third-party (section 7)    |
-| License                  | AGPL-3.0                     | AGPL-3.0                     | AGPL-3.0                            | MIT / MIT OR Apache-2.0    |
-| Render-path consumers    | analyser editors, N = 1024   | Convolver, N = 256/2048/16384| time-stretch per region, N = 4096   | none                       |
-| Accuracy (worst rel. RMS)| 1.4e-7 (section 9)           | 1.5e-7 (section 9)           | 1.4e-7, = analyser (section 9)      | not measured               |
-| Measured cost            | none                         | none                         | whole frame, see section 6          | none                       |
+| Requirement               | `dsp::analyser`            | `dsp::rfft`                   | `signalsmith::fft`                    | `realfft`/`rustfft`        |
+| ------------------------- | -------------------------- | ----------------------------- | ------------------------------------- | -------------------------- |
+| Real-input (N/2 + twist)  | no, full N complex         | yes                           | no; two real channels per complex FFT | yes                        |
+| Layout                    | split re/im                | split re/im                   | split re/im                           | interleaved `Complex<f32>` |
+| Sizes                     | fixed 1024                 | any power of two              | any power of two                      | any                        |
+| Inverse                   | no                         | yes, identity round trip      | yes, scaled 1/N                       | yes, unnormalized (×N)     |
+| Stage-wise API            | no                         | no                            | yes (`bit_reverse`/`stage`/`scale`)   | no                         |
+| Hann helpers              | no (Blackman inline)       | no                            | no (Kaiser OLA window separate)       | no                         |
+| Explicit SIMD128          | no                         | no                            | no (tried and reverted, section 6)    | yes, `wasm_simd` feature   |
+| No allocation after plan  | yes                        | yes                           | yes                                   | yes, with caller scratch   |
+| `no_std` (engine, talc)   | yes                        | yes                           | yes (`alloc`)                         | no, needs `std` (`Arc`)    |
+| Twiddles                  | f64 → f32, strided         | f64 → f32, strided            | f64 → f32, strided                    | per plan                   |
+| Project policy            | homebrew                   | homebrew                      | homebrew                              | third-party (section 7)    |
+| License                   | AGPL-3.0                   | AGPL-3.0                      | AGPL-3.0                              | MIT / MIT OR Apache-2.0    |
+| Render-path consumers     | analyser editors, N = 1024 | Convolver, N = 256/2048/16384 | time-stretch per region, N = 4096     | none                       |
+| Accuracy (worst rel. RMS) | 1.4e-7 (section 9)         | 1.5e-7 (section 9)            | 1.4e-7, = analyser (section 9)        | not measured               |
+| Measured cost             | none                       | none                          | whole frame, see section 6            | none                       |
 
 Not on the render path: `stretch::fft` (analysis in the core worker) and `matchering::fft` (f64,
 offline). Both are scalar radix-2 as well.
@@ -48,11 +48,11 @@ any SIMD. Report this gain separately from the SIMD gain so the two are not conf
 The butterfly pairs `j` with `j + half_size` (line 135), and `half_size` doubles per stage starting at 1
 (`size` starts at 2, line 126). In split re/im layout (SoA) one `f32x4` holds four consecutive indices:
 
-| Stage | Distance | Partners                               | SIMD           |
-|-------|----------|----------------------------------------|----------------|
-| 1     | 1        | lanes 0↔1, 2↔3 inside one vector       | shuffle needed |
-| 2     | 2        | lanes 0↔2, 1↔3 inside one vector       | shuffle needed |
-| 3–10  | 4…512    | same lane, different vectors           | lane-parallel  |
+| Stage | Distance | Partners                         | SIMD           |
+| ----- | -------- | -------------------------------- | -------------- |
+| 1     | 1        | lanes 0↔1, 2↔3 inside one vector | shuffle needed |
+| 2     | 2        | lanes 0↔2, 1↔3 inside one vector | shuffle needed |
+| 3–10  | 4…512    | same lane, different vectors     | lane-parallel  |
 
 `future-plans/simd-fft.md` states the opposite ("first stages lane-parallel, the last two need one
 shuffle each"). That ordering holds for decimation-in-frequency (natural-order input, largest distance
@@ -114,17 +114,17 @@ FFT we have".
 
 `future-plans/simd-fft.md` was written on 2026-07-12 (`58556bfc8`).
 
-| Date       | FFT / event                                 | Commit      | Render path |
-|------------|---------------------------------------------|-------------|-------------|
-| 2026-07-05 | `dsp::analyser`                             | `250609d8a` | yes         |
-| 2026-07-10 | `stretch::fft`                              | `a9f52209e` | no (worker) |
-| 2026-07-12 | **plan written**                            | `58556bfc8` |             |
-| 2026-07-12 | `signalsmith::fft`                          | `820b51ef6` | yes         |
-| 2026-07-15 | SIMD butterflies in `signalsmith::fft`      | `7998a6b64` | yes         |
-| 2026-07-15 | ...reverted 43 minutes later                | `3628e040e` |             |
-| 2026-08-25 | `dsp::rfft` (convolver)                     | `8cb020039` | yes         |
-| 2026-10-31 | `matchering::fft` (f64)                     | `0fdd8d4b8` | no          |
-| 2026-11-18 | `signalsmith` splits a frame over quanta    | `d02dc79b8` | yes         |
+| Date       | FFT / event                              | Commit      | Render path |
+| ---------- | ---------------------------------------- | ----------- | ----------- |
+| 2026-07-05 | `dsp::analyser`                          | `250609d8a` | yes         |
+| 2026-07-10 | `stretch::fft`                           | `a9f52209e` | no (worker) |
+| 2026-07-12 | **plan written**                         | `58556bfc8` |             |
+| 2026-07-12 | `signalsmith::fft`                       | `820b51ef6` | yes         |
+| 2026-07-15 | SIMD butterflies in `signalsmith::fft`   | `7998a6b64` | yes         |
+| 2026-07-15 | ...reverted 43 minutes later             | `3628e040e` |             |
+| 2026-08-25 | `dsp::rfft` (convolver)                  | `8cb020039` | yes         |
+| 2026-10-31 | `matchering::fft` (f64)                  | `0fdd8d4b8` | no          |
+| 2026-11-18 | `signalsmith` splits a frame over quanta | `d02dc79b8` | yes         |
 
 All five are separate homebrew radix-2 DIT implementations with the same strided-twiddle loop.
 `stretch::fft` and `signalsmith::fft` are near copies.
@@ -160,17 +160,18 @@ From the commit messages:
   `fft-bench` for wasm32 (`+simd128`, opt-level 3, LTO, no `wasm-opt`; inspected with `wasm-dis`),
   one group of 4 butterflies has:
 
-  | Vector          | Compiled as                                                             |
-  |-----------------|-------------------------------------------------------------------------|
-  | `re` even/odd   | `v128.load`                                                             |
-  | `im` even/odd   | lane by lane: `f32x4.splat(f32.load)` + 3 `replace_lane`/`load32_lane`  |
-  | `cos` / `sin`   | lane by lane, same pattern (strided gathers)                            |
-  | all 4 stores    | `v128.store`                                                            |
+  | Vector        | Compiled as                                                            |
+  | ------------- | ---------------------------------------------------------------------- |
+  | `re` even/odd | `v128.load`                                                            |
+  | `im` even/odd | lane by lane: `f32x4.splat(f32.load)` + 3 `replace_lane`/`load32_lane` |
+  | `cos` / `sin` | lane by lane, same pattern (strided gathers)                           |
+  | all 4 stores  | `v128.store`                                                           |
 
   So 10 vector arithmetic operations are fed by 2 vector loads plus 16 scalar reads and 12 lane
   inserts. The engine build may differ in detail. A concrete, testable explanation for the browser
   slowdown, next to the gathered twiddles the commit names: lane inserts are cheap for an optimising
   compiler and likely expensive for a baseline tier.
+
 - **Gain:** frame p99 5.3% → 5.0% of the budget (wasmbench); about 12% on the vocoder frame in Node,
   ≈ 0.6% of the budget overall.
 - **Why reverted:** a studio report showed a large slowdown that Node could not reproduce. The
@@ -181,13 +182,13 @@ From the commit messages:
 
 How the planned kernel differs from that attempt:
 
-| Aspect             | Reverted attempt (`7998a6b64`) | Planned kernel                            |
-|--------------------|--------------------------------|-------------------------------------------|
-| Stages 1–2         | scalar                         | vectorised (radix-4 first pass, transpose)|
-| Twiddles           | strided, gathered per lane     | contiguous per stage, plain vector loads  |
-| Data loads         | `re` vector, `im` lane by lane (compiled) | `v128_load` for all             |
-| Real input         | two real channels per complex FFT (stereo packing, `49a65a02f`) | same for `signalsmith`; N/2 complex + post-twist where one real signal is transformed (analyser) |
-| Measured in        | Node only                      | Node and AudioWorklet in three browsers   |
+| Aspect      | Reverted attempt (`7998a6b64`)                                  | Planned kernel                                                                                   |
+| ----------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Stages 1–2  | scalar                                                          | vectorised (radix-4 first pass, transpose)                                                       |
+| Twiddles    | strided, gathered per lane                                      | contiguous per stage, plain vector loads                                                         |
+| Data loads  | `re` vector, `im` lane by lane (compiled)                       | `v128_load` for all                                                                              |
+| Real input  | two real channels per complex FFT (stereo packing, `49a65a02f`) | same for `signalsmith`; N/2 complex + post-twist where one real signal is transformed (analyser) |
+| Measured in | Node only                                                       | Node and AudioWorklet in three browsers                                                          |
 
 ## 7. Dependency policy
 
@@ -197,15 +198,15 @@ in their headers.
 
 This does **not** make the plan's library alternative outdated. Checked by date:
 
-| Evidence                                              | Date              | Relation to the plan |
-|-------------------------------------------------------|-------------------|----------------------|
-| Policy "All homebrew" / "Minimal dependencies"        | 2026-06-15        | older |
-| Engine `no_std` (`af8e8c3f7`)                         | 2026-06-17        | older |
-| "no rustfft" header in `stretch::fft`                 | 2026-07-10        | older |
-| "no rustfft" header in `signalsmith::fft` (`820b51ef6`) | 2026-07-12 12:17 | older, by 12 minutes |
-| **`future-plans/simd-fft.md`** (`58556bfc8`)          | **2026-07-12 12:29** | — |
-| `rustfft` leaves the workspace lockfile (`c1683fab1`) | 2026-07-14        | newer, but a side effect: it came from `audio-analyzer-rs` behind `stretch-lab`, which left the workspace |
-| `dsp::rfft`, `matchering::fft` homebrew               | 2026-08-25, 10-31 | newer; their commits say nothing about libraries |
+| Evidence                                                | Date                 | Relation to the plan                                                                                      |
+| ------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Policy "All homebrew" / "Minimal dependencies"          | 2026-06-15           | older                                                                                                     |
+| Engine `no_std` (`af8e8c3f7`)                           | 2026-06-17           | older                                                                                                     |
+| "no rustfft" header in `stretch::fft`                   | 2026-07-10           | older                                                                                                     |
+| "no rustfft" header in `signalsmith::fft` (`820b51ef6`) | 2026-07-12 12:17     | older, by 12 minutes                                                                                      |
+| **`future-plans/simd-fft.md`** (`58556bfc8`)            | **2026-07-12 12:29** | —                                                                                                         |
+| `rustfft` leaves the workspace lockfile (`c1683fab1`)   | 2026-07-14           | newer, but a side effect: it came from `audio-analyzer-rs` behind `stretch-lab`, which left the workspace |
+| `dsp::rfft`, `matchering::fft` homebrew                 | 2026-08-25, 10-31    | newer; their commits say nothing about libraries                                                          |
 
 The plan is the newest statement on the question and weighs the policy itself ("minimal dependencies
 still favours our own small kernel … so measure before deciding"). No later commit or plan decides
@@ -246,7 +247,7 @@ rustc 1.93.0. Measured 2026-11-21. Signals and metrics as in `analysis/simd-fft-
 Worst value over the seven gated signals per size (the denormal signal is listed separately):
 
 | N     | Analyser rel. RMS | `rfft` rel. RMS | Analyser Parseval | `rfft` Parseval | `rfft` round trip | Denormal rel. RMS (analyser / `rfft`) |
-|-------|-------------------|-----------------|-------------------|-----------------|-------------------|---------------------------------------|
+| ----- | ----------------- | --------------- | ----------------- | --------------- | ----------------- | ------------------------------------- |
 | 256   | 1.1e-7            | 1.1e-7          | 9.0e-8            | 5.6e-8          | 4.5e-8            | 6.3e-7 / 4.4e-7                       |
 | 512   | 1.1e-7            | 1.2e-7          | 6.0e-8            | 7.0e-8          | 7.5e-8            | 5.4e-7 / 4.0e-7                       |
 | 1024  | 1.2e-7            | 1.4e-7          | 8.4e-8            | 8.8e-8          | 8.9e-8            | 5.4e-7 / 4.1e-7                       |
@@ -257,15 +258,15 @@ Worst value over the seven gated signals per size (the denormal signal is listed
 
 Analyser output contract at N = 1024, `rfft` against the analyser copy:
 
-| Signal           | Deviation |
-|------------------|-----------|
-| impulse          | 0         |
-| DC               | 1.9e-8    |
-| sine on bin      | 4.5e-8    |
-| sine off bin     | 8.0e-8    |
-| white noise      | 1.8e-7    |
-| full-scale noise | 1.5e-7    |
-| full-scale sine  | 4.5e-8    |
+| Signal           | Deviation                  |
+| ---------------- | -------------------------- |
+| impulse          | 0                          |
+| DC               | 1.9e-8                     |
+| sine on bin      | 4.5e-8                     |
+| sine off bin     | 8.0e-8                     |
+| white noise      | 1.8e-7                     |
+| full-scale noise | 1.5e-7                     |
+| full-scale sine  | 4.5e-8                     |
 | denormal noise   | 0 (both bin sets all zero) |
 
 `signalsmith::fft` and the reverted SIMD variant (fft-bench commit 4, same environment): worst
@@ -293,3 +294,69 @@ Takeaways:
   f64 (`analyser.rs` line 104): below ≈ 1e-19 the squares lose precision, below ≈ 4e-23 they are 0.
   That is beyond −380 dB, so it has no audible or visible effect; it only explains the all-zero bins
   in the contract row above.
+
+## 10. First full measurement run (2026-11-21)
+
+Raw files: `analysis/results/2026-11-21/` (Apple M1, macOS 27.0.1, Node 24.21.0 / V8 13.6, rustc 1.93.0,
+realfft 3.5.1 / rustfft 6.4.1). Preliminary: one machine, Node only, no browser numbers yet.
+
+### Validity
+
+- Accuracy and native ran on `4f66c29fe`, Node on `912254d93`; the two differ only in `docs/runbook.md`,
+  so the measured code is identical.
+- Native ran on `4f66c29fe-dirty` (most likely the uncommitted runbook edit); formally not attributable
+  under the runbook's rule.
+- `size.md` and `nostd.md` carry no environment table, although the runbook says every result file does.
+- Native is noisy: 13 points with an interval above ±5 %, and the analyser copy 10 % slower than the
+  original (11.2 vs 10.2 µs). Native numbers are development numbers only.
+- Node is clean: one point above 5 % (`realfft` inverse, N = 2048, ±13 %).
+
+### Accuracy
+
+Not a deciding factor. Every option sits at f32 resolution: relative RMS 1.1–1.5e-7, round trip
+≤ 1.3e-7, analyser contract ≤ 1.8e-7, about 70× below the 1e-5 targets. `signalsmith` and `reverted`
+give bit-identical analyser bins.
+
+### How much faster with SIMD (Node, wasm SIMD128, forward throughput)
+
+| Comparison                                          | N = 1024 | N = 4096 |
+| --------------------------------------------------- | -------- | -------- |
+| `realfft` vs. analyser (current scalar)             | 8.2×     | 9.6×     |
+| `realfft` vs. `rfft` (same real-input trick)        | 4.8×     | 5.0×     |
+| `reverted` (earlier SIMD attempt) vs. `signalsmith` | 1.14×    | 1.21×    |
+
+- The real-input trick alone is worth about 1.7× (`rfft` vs. analyser); the remaining ≈ 5× comes from
+  SIMD and a better algorithm.
+- The plan's target (≥ 4× for N = 1024–4096) is reachable on SIMD128: the library exceeds it even
+  against `rfft`.
+- The earlier attempt reached about 1.2×, consistent with its revert.
+- `realfft`'s single calls are as fast as its throughput, with a tight p99 (6.5 / 6.7 µs at 4096). The
+  scalar options show p99 spikes up to 3×, most likely runtime or OS noise, not the kernels.
+
+### Is it worth it: render budget (FFTs only, no windowing or pack/unpack)
+
+| Consumer                           | current | `realfft` |
+| ---------------------------------- | ------- | --------- |
+| Analyser, average                  | 0.06 %  | 0.01 %    |
+| Time-stretch, 16 regions           | 9.1 %   | 1.9 %     |
+| Convolver, worst case per instance | 12.2 %  | 2.6 %     |
+
+- The analyser does not need a faster FFT.
+- Time-stretch already meets the proposed V = 16, P = 25 % at 9 %.
+- The gain pays where load accumulates: the Convolver's worst case (several instances in one quantum)
+  and time-stretch with many regions. That is narrower than `future-plans/simd-fft.md` suggests.
+
+### Library or own kernel
+
+- `realfft` fails the `no_std` gate as it is: it cannot link into the engine (duplicate `panic_impl`).
+- It adds 172.6 KB gzip, about +35 % on a 490 KB engine; each scalar option adds about 4.5 KB.
+- Open: how much of the 172.6 KB is `std` and how much the rustfft planner. That decides whether a
+  `no_std` variant of the library would be small.
+- Day-2 target: an own kernel within 20 % of `realfft` needs about 1.7 µs at N = 1024 and 7.8 µs at
+  N = 4096 in Node, ideally under 10 KB gzip. The earlier attempt is 6–7× slower than that (11.3 and 50.2 µs).
+
+### Follow-ups
+
+- Rerun the native fidelity point three times in isolation (runbook step 4).
+- Give `size.sh` and `nostd-check.sh` an environment header, or correct the runbook.
+- Browser numbers (Chrome, Firefox, Safari) before any decision.
