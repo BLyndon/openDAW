@@ -6,6 +6,7 @@ import os from "node:os"
 import crypto from "node:crypto"
 import {execFileSync} from "node:child_process"
 import {budgetReport, RENDER_QUANTUM_NS} from "./budget.mjs"
+import {cell, environmentTable, microseconds, sizeTable, stepTable} from "./markdown.mjs"
 import {CI_TARGET, MAX_BATCHES, median, percentile, throughput, WARM_UP_CALLS} from "./stats.mjs"
 
 const DEFAULT_MODULE = "target/wasm32-unknown-unknown/release/fft_bench.wasm"
@@ -112,22 +113,9 @@ for (const n of sizes) {
     }
 }
 
-const microseconds = (nanoseconds) => (nanoseconds / 1000).toFixed(nanoseconds < 10000 ? 2 : 1)
-const cell = (measure) => measure === undefined ? "–"
-    : `${microseconds(measure.median)} ±${(measure.ci * 100).toFixed(1)} %${measure.ci > CI_TARGET ? " ⚠" : ""}`
-const table = (title, value) => {
-    console.log(`### ${title}\n`)
-    console.log(`| N | ${options.map(({name}) => name).join(" | ")} |`)
-    console.log(`|---|${"---|".repeat(options.length)}`)
-    for (const n of sizes) {
-        const row = options.map(({name}) => value(results.find((result) => result.name === name && result.n === n)))
-        console.log(`| ${n} | ${row.join(" | ")} |`)
-    }
-    console.log()
-}
-
-console.log("## Environment\n\n| Key | Value |\n|---|---|")
-environment.forEach(([key, value]) => console.log(`| ${key} | ${value} |`))
+const print = (lines) => lines.forEach((line) => console.log(line))
+const table = (title, value) => print(sizeTable(title, sizes, options, value, results))
+print(environmentTable(environment))
 console.log("\n## Wasm timings (Node)\n")
 console.log(`Throughput: median µs per call with the 95 % CI half-width; ⚠ marks a CI above ${CI_TARGET * 100} % after ${MAX_BATCHES} batches.\n`)
 table("Forward, throughput (µs)", (result) => cell(result.forward))
@@ -136,17 +124,11 @@ table("Forward, single call: median / p99 (µs, includes one timer pair)",
     (result) => `${microseconds(result.forwardCall.median)} / ${microseconds(result.forwardCall.p99)}`)
 table("Forward, % of the 128-frame render quantum at 48 kHz",
     (result) => `${(result.forward.median / RENDER_QUANTUM_NS * 100).toFixed(2)} %`)
-const stepped = results.filter((result) => result.steps !== undefined)
-if (stepped.length > 0) {
-    console.log("### Forward steps (stage-wise options): µs per step, median\n")
-    console.log("| Option | N | Steps | Largest step | All steps |\n|---|---|---|---|---|")
-    stepped.forEach((result) => console.log(`| ${result.name} | ${result.n} | ${result.steps.length} | `
-        + `${microseconds(Math.max(...result.steps))} | ${microseconds(result.steps.reduce((sum, value) => sum + value, 0))} |`))
-}
+print(stepTable(results))
 
 const times = (name, n) => {
     const result = results.find((entry) => entry.name === name && entry.n === n)
     return result === undefined ? undefined : {forward: result.forward.median, inverse: result.inverse?.median}
 }
 console.log()
-budgetReport(options, times).forEach((line) => console.log(line))
+print(budgetReport(options, times))
