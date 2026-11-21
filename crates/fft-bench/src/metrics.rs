@@ -6,6 +6,16 @@ use crate::reference::Spectrum;
 pub const ROUND_TRIP_LIMIT: f64 = 1e-5;
 /// Plan proposal for the analyser output contract, ≈ −100 dB relative to the spectrum peak.
 pub const CONTRACT_EPSILON: f64 = 1e-5;
+/// Plan: a candidate's relative RMS may be at most this multiple of the baseline's.
+pub const RMS_GATE_FACTOR: f64 = 2.0;
+/// Below one f32 epsilon a result is as exact as f32 gets. Without this floor an exact baseline (impulse
+/// 0, DC ≈ 1e-15) would demand a bit-exact candidate. A harness decision, not from the plan.
+pub const RMS_GATE_FLOOR: f64 = f32::EPSILON as f64;
+
+/// The largest relative RMS a candidate may show where the baseline shows `baseline_rms`.
+pub fn rms_gate(baseline_rms: f64) -> f64 {
+    RMS_GATE_FACTOR * baseline_rms.max(RMS_GATE_FLOOR)
+}
 
 /// `sqrt(Σ|X − X_ref|² / Σ|X_ref|²)` over bins 0..=n/2.
 pub fn relative_rms(re: &[f32], im: &[f32], reference: &Spectrum) -> f64 {

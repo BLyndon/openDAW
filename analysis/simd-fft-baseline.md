@@ -24,7 +24,7 @@ candidate. `realfft`/`rustfft` from the crate sources (realfft 3.5.1, rustfft 6.
 | Project policy           | homebrew                     | homebrew                     | homebrew                            | third-party (section 7)    |
 | License                  | AGPL-3.0                     | AGPL-3.0                     | AGPL-3.0                            | MIT / MIT OR Apache-2.0    |
 | Render-path consumers    | analyser editors, N = 1024   | Convolver, N = 256/2048/16384| time-stretch per region, N = 4096   | none                       |
-| Accuracy (worst rel. RMS)| 1.4e-7 (section 9)           | 1.5e-7 (section 9)           | not measured                        | not measured               |
+| Accuracy (worst rel. RMS)| 1.4e-7 (section 9)           | 1.5e-7 (section 9)           | 1.4e-7, = analyser (section 9)      | not measured               |
 | Measured cost            | none                         | none                         | whole frame, see section 6          | none                       |
 
 Not on the render path: `stretch::fft` (analysis in the core worker) and `matchering::fft` (f64,
@@ -147,6 +147,24 @@ From the commit messages:
 
 - **What it did:** 4 butterflies per `f32x4` for distance ≥ 4. The first two stages and the bit
   reversal stayed scalar. Twiddles stayed strided and were gathered lane by lane. Bit-identical output.
+- **Most input vectors are built lane by lane** (found in the code and the compiled wasm, not in the
+  commit message). In source, `Simd4::load` builds every vector from four scalar loads,
+  `f32x4(slice[0], …, slice[3])`, and `Simd4::store` splits it with four `f32x4_extract_lane` calls
+  (`simd.rs` at `7998a6b64`), even for contiguous data. LLVM repairs part of that. Compiled through
+  `fft-bench` for wasm32 (`+simd128`, opt-level 3, LTO, no `wasm-opt`; inspected with `wasm-dis`),
+  one group of 4 butterflies has:
+
+  | Vector          | Compiled as                                                             |
+  |-----------------|-------------------------------------------------------------------------|
+  | `re` even/odd   | `v128.load`                                                             |
+  | `im` even/odd   | lane by lane: `f32x4.splat(f32.load)` + 3 `replace_lane`/`load32_lane`  |
+  | `cos` / `sin`   | lane by lane, same pattern (strided gathers)                            |
+  | all 4 stores    | `v128.store`                                                            |
+
+  So 10 vector arithmetic operations are fed by 2 vector loads plus 16 scalar reads and 12 lane
+  inserts. The engine build may differ in detail. A concrete, testable explanation for the browser
+  slowdown, next to the gathered twiddles the commit names: lane inserts are cheap for an optimising
+  compiler and likely expensive for a baseline tier.
 - **Gain:** frame p99 5.3% → 5.0% of the budget (wasmbench); about 12% on the vocoder frame in Node,
   ≈ 0.6% of the budget overall.
 - **Why reverted:** a studio report showed a large slowdown that Node could not reproduce. The
@@ -161,6 +179,7 @@ How the planned kernel differs from that attempt:
 |--------------------|--------------------------------|-------------------------------------------|
 | Stages 1–2         | scalar                         | vectorised (radix-4 first pass, transpose)|
 | Twiddles           | strided, gathered per lane     | contiguous per stage, plain vector loads  |
+| Data loads         | `re` vector, `im` lane by lane (compiled) | `v128_load` for all             |
 | Real input         | full N complex                 | N/2 complex + post-twist                  |
 | Measured in        | Node only                      | Node and AudioWorklet in three browsers   |
 
@@ -222,9 +241,21 @@ Analyser output contract at N = 1024, `rfft` against the analyser copy:
 | full-scale sine  | 4.5e-8    |
 | denormal noise   | 0 (both bin sets all zero) |
 
+`signalsmith::fft` and the reverted SIMD variant (fft-bench commit 4, same environment): worst
+relative RMS 1.4e-7, Parseval 1.5e-7, round trip 1.0e-7, denormal 6.3e-7, all over 256–16384. The
+reverted variant gives the same bits as today's `signalsmith::fft` natively, forward and inverse
+(there it runs its scalar `Simd4` fallback).
+
+**`signalsmith::fft` is numerically the analyser FFT.** Its contract deviation against the analyser is
+exactly 0 for every gated signal. Both use the same butterfly order; `signalsmith` stores the sine
+table with the opposite sign and subtracts where the analyser adds, and `a − b·(−s)` equals `a + b·s`
+exactly in IEEE arithmetic. Two of the three render-path baselines are therefore one FFT in numbers;
+they differ only in code shape (fixed size and arrays vs. runtime size, slices and a precomputed
+bit-reversal table), which can still matter for speed.
+
 Takeaways:
 
-- **Both baselines work at f32 resolution** (ε ≈ 1.2e-7). Every plan target is met with about two
+- **All baselines work at f32 resolution** (ε ≈ 1.2e-7). Every plan target is met with about two
   orders of magnitude to spare: round trip ≤ 1.3e-7 against 1e-5, contract ≤ 1.8e-7 against 1e-5.
 - **The "≤ 2× baseline" gate is tight in absolute terms.** A new kernel must stay at about
   ≤ 3e-7 relative RMS. Reordered sums in a radix-4 or vectorised kernel are normally within that,

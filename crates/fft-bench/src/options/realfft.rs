@@ -1,0 +1,61 @@
+//! `realfft` 3.5 over `rustfft` 6.4: the reference for what a mature SIMD FFT reaches. Not a decision
+//! option (third-party DSP, needs `std`). Interleaved `Complex<f32>` and unnormalized inverse are adapted.
+
+use crate::{bins, RealFft};
+use ::realfft::num_complex::Complex;
+use ::realfft::{ComplexToReal, RealFftPlanner, RealToComplex};
+use std::sync::Arc;
+
+pub struct RealFftOption {
+    n: usize,
+    forward_plan: Arc<dyn RealToComplex<f32>>,
+    inverse_plan: Arc<dyn ComplexToReal<f32>>,
+    input: Vec<f32>,
+    spectrum: Vec<Complex<f32>>,
+    output: Vec<f32>,
+    forward_scratch: Vec<Complex<f32>>,
+    inverse_scratch: Vec<Complex<f32>>
+}
+
+impl RealFft for RealFftOption {
+    fn new(n: usize) -> Self {
+        let mut planner = RealFftPlanner::<f32>::new();
+        let forward_plan = planner.plan_fft_forward(n);
+        let inverse_plan = planner.plan_fft_inverse(n);
+        let (forward_scratch, inverse_scratch) = (forward_plan.make_scratch_vec(), inverse_plan.make_scratch_vec());
+        Self { n, forward_plan, inverse_plan, input: vec![0.0; n], spectrum: vec![Complex::new(0.0, 0.0); bins(n)],
+            output: vec![0.0; n], forward_scratch, inverse_scratch }
+    }
+
+    fn size(&self) -> usize {
+        self.n
+    }
+
+    fn forward(&mut self, input: &[f32], re: &mut [f32], im: &mut [f32]) {
+        // realfft uses its input as scratch, so it gets a copy.
+        self.input.copy_from_slice(input);
+        self.forward_plan.process_with_scratch(&mut self.input, &mut self.spectrum, &mut self.forward_scratch)
+            .expect("buffer lengths are fixed at plan creation");
+        for (bin, value) in self.spectrum.iter().enumerate() {
+            re[bin] = value.re;
+            im[bin] = value.im;
+        }
+    }
+
+    fn inverse(&mut self, re: &[f32], im: &[f32], output: &mut [f32]) -> bool {
+        let last = self.n / 2;
+        for (bin, value) in self.spectrum.iter_mut().enumerate() {
+            *value = Complex::new(re[bin], im[bin]);
+        }
+        // DC and Nyquist of a real signal have no imaginary part; realfft rejects non-zero values there.
+        self.spectrum[0].im = 0.0;
+        self.spectrum[last].im = 0.0;
+        self.inverse_plan.process_with_scratch(&mut self.spectrum, &mut self.output, &mut self.inverse_scratch)
+            .expect("buffer lengths are fixed and DC/Nyquist imaginary parts are zero");
+        let scale = 1.0 / self.n as f32;
+        for (target, value) in output.iter_mut().zip(&self.output) {
+            *target = value * scale;
+        }
+        true
+    }
+}

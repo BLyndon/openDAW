@@ -1,10 +1,11 @@
 // Accuracy suite. First the tools themselves (reference DFT, metrics) are checked against known answers,
-// then every scalar baseline is held to the plan's targets. Measured on 2026-11-21: all four stay at or
-// below 1.6e-7 relative RMS, 1.5e-7 Parseval error, 1.4e-7 round trip and 1.9e-7 contract deviation.
+// then the baselines are held to sanity bounds and every other option to the plan's gates. Measured on
+// 2026-11-21: all options stay at or below 1.6e-7 relative RMS, 1.5e-7 Parseval error, 1.4e-7 round trip
+// and 1.9e-7 contract deviation.
 
 use fft_bench::contract::{analyser_bins, analyser_window};
-use fft_bench::metrics::{contract_deviation, max_abs_error, parseval_error, relative_rms, CONTRACT_EPSILON, ROUND_TRIP_LIMIT};
-use fft_bench::options::{analyser::AnalyserFft, reverted::RevertedFft, rfft::RfftOption, signalsmith::SignalsmithFft};
+use fft_bench::metrics::{contract_deviation, max_abs_error, parseval_error, relative_rms, rms_gate, CONTRACT_EPSILON, ROUND_TRIP_LIMIT};
+use fft_bench::options::{analyser::AnalyserFft, rfft::RfftOption, Role, ALL};
 use fft_bench::reference::dft;
 use fft_bench::signals::{impulse, sine_on_bin, Signal, SINE_AMPLITUDE, SINE_BIN_DIVISOR};
 use fft_bench::{bins, RealFft, SIZES};
@@ -17,9 +18,16 @@ const BASELINE_PARSEVAL_LIMIT: f64 = 1e-6;
 const REFERENCE_TOLERANCE: f64 = 1e-9;
 const ANALYSER_SIZE: usize = 1024;
 
+fn options(n: usize, include: impl Fn(Role) -> bool) -> Vec<(&'static str, Box<dyn RealFft>)> {
+    ALL.iter().filter(|entry| include(entry.role)).map(|entry| (entry.name, (entry.create)(n))).collect()
+}
+
 fn baselines(n: usize) -> Vec<(&'static str, Box<dyn RealFft>)> {
-    vec![("analyser", Box::new(AnalyserFft::new(n))), ("rfft", Box::new(RfftOption::new(n))),
-        ("signalsmith", Box::new(SignalsmithFft::new(n))), ("reverted", Box::new(RevertedFft::new(n)))]
+    options(n, |role| role == Role::Baseline)
+}
+
+fn all_options(n: usize) -> Vec<(&'static str, Box<dyn RealFft>)> {
+    options(n, |_| true)
 }
 
 fn forward(fft: &mut dyn RealFft, input: &[f32]) -> (Vec<f32>, Vec<f32>) {
@@ -94,7 +102,7 @@ fn baselines_match_the_f64_reference_and_parseval() {
 fn round_trip_meets_the_plan_target() {
     for n in SIZES {
         let input = Signal::WhiteNoise.generate(n);
-        for (name, mut fft) in baselines(n) {
+        for (name, mut fft) in all_options(n) {
             let (re, im) = forward(fft.as_mut(), &input);
             let mut output = vec![0.0; n];
             if !fft.inverse(&re, &im, &mut output) {
@@ -107,14 +115,33 @@ fn round_trip_meets_the_plan_target() {
 }
 
 #[test]
-fn every_baseline_meets_the_analyser_contract() {
+fn every_option_meets_the_analyser_contract() {
     let window = analyser_window(ANALYSER_SIZE);
     for signal in Signal::ALL.into_iter().filter(|signal| signal.is_gated()) {
         let input = signal.generate(ANALYSER_SIZE);
         let old = analyser_bins(&mut AnalyserFft::new(ANALYSER_SIZE), &input, &window);
-        for (name, mut fft) in baselines(ANALYSER_SIZE) {
+        for (name, mut fft) in all_options(ANALYSER_SIZE) {
             let deviation = contract_deviation(&analyser_bins(fft.as_mut(), &input, &window), &old);
             assert!(deviation < CONTRACT_EPSILON, "{name}, {}: contract deviation {deviation:e}", signal.name());
+        }
+    }
+}
+
+#[test]
+fn non_baselines_stay_within_the_rms_gate_of_rfft() {
+    // The plan's gate: at most 2× the error of the current FFT (`dsp::rfft`, which covers all sizes).
+    for n in SIZES {
+        let mut baseline = RfftOption::new(n);
+        for signal in Signal::ALL.into_iter().filter(|signal| signal.is_gated()) {
+            let input = signal.generate(n);
+            let reference = dft(&input);
+            let (base_re, base_im) = forward(&mut baseline, &input);
+            let limit = rms_gate(relative_rms(&base_re, &base_im, &reference));
+            for (name, mut fft) in options(n, |role| role != Role::Baseline) {
+                let (re, im) = forward(fft.as_mut(), &input);
+                let rms = relative_rms(&re, &im, &reference);
+                assert!(rms <= limit, "{name}, n = {n}, {}: rel. RMS {rms:e} above gate {limit:e}", signal.name());
+            }
         }
     }
 }

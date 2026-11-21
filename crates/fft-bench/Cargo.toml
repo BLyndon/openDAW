@@ -12,6 +12,11 @@ dsp = {path = "../dsp"}
 math = {path = "../math"}
 signalsmith = {path = "../signalsmith"}
 libm = "0.2"
+realfft = "3.5"
+
+# rustfft only takes its SIMD128 path with this feature; natively it uses NEON/AVX by default.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+realfft = {version = "3.5", features = ["wasm_simd"]}
 
 # The f64 reference DFT is O(n²): ~134 M multiply-adds per signal at n = 16384, too slow unoptimised.
 [profile.test]
