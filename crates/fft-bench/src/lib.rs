@@ -23,7 +23,7 @@ pub const fn bins(n: usize) -> usize {
 /// A real-input FFT of one fixed power-of-two size. Only `new` may allocate.
 ///
 /// Benchmarks time only the `*_kernel` methods: the option's native call, without adapter copies. The
-/// `prepare_*` methods load the data the way the option's consumer would and are not timed. Options
+/// `prepare_*` methods put the data where the kernel reads it and are not timed. Options
 /// whose native call is `forward`/`inverse` itself keep the defaults.
 pub trait RealFft {
     fn new(n: usize) -> Self where Self: Sized;

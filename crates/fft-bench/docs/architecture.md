@@ -96,7 +96,7 @@ pub trait RealFft {
 
 | Rule                       | Why |
 |----------------------------|-----|
-| `*_kernel` is the option's native call; `prepare_*` loads data as its consumer does, untimed | benchmarks time the transform, not adapter copies; `forward`/`inverse` are built from the same two steps, so the accuracy tests cover exactly the timed code |
+| `*_kernel` is the option's native call; `prepare_*` puts the data where the kernel reads it, untimed | benchmarks time the transform, not adapter copies; `forward`/`inverse` are built from the same two steps, so the accuracy tests cover exactly the timed code |
 | Real input, n/2 + 1 bins out, split re/im | the layout of `dsp::rfft` and of the planned kernel; audio is real |
 | Unnormalised forward, identity round trip | matches `dsp::rfft`; adapters scale where an option differs |
 | Only `new` allocates       | the engine never allocates on the render path |
