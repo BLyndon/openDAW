@@ -6,7 +6,7 @@ import path from "node:path"
 import {fileURLToPath} from "node:url"
 import {gitRevision} from "./host.mjs"
 
-// From the crates' own manifests, as listed in analysis/simd-fft-baseline.md.
+// From the crates' own manifests (realfft 3.5, rustfft 6.4).
 export const LICENCES = {realfft: "MIT", rustfft: "MIT OR Apache-2.0", own: "AGPL-3.0 (project)"}
 // realfft cannot link no_std, so size.sh measures it in a std module against an empty std module.
 const SIZE_STUB = {realfft: "realfft-std"}

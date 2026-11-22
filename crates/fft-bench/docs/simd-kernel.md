@@ -95,7 +95,7 @@ and stored as f32, as in the existing FFTs.
 - In the first stage, lanes run over `p`, so the twiddles of four consecutive `p` sit next to each other
   and come in with one vector load each.
 - No strided gathers. In the reverted SIMD attempt (`7998a6b64`), gathering twiddles lane by lane was one
-  of the two reasons it ran badly in the browser (see `analysis/simd-fft-baseline.md` § 6).
+  of the two reasons it ran badly in the browser (see `analysis/findings.md` § 5).
 
 **Expected gain:** small on its own (**about 1.05×** scalar). It is the precondition for step 5 to run at
 full width.
