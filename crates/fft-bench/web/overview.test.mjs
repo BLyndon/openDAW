@@ -42,13 +42,20 @@ test("simd-o1o4 has its own column, filled from its own times", () => {
 test("20 % rule: a ratio of exactly 1.2 counts as within", () => {
     assert.equal(LIBRARY_LIMIT, 1.2)
     const row = rowFor(overviewRows({...INPUT, times: timesWithRatio(1.2)}), "20 %")
-    assert.match(row.cells.realfft.text, /within 20 % at N = 256, 512, 1024/)
+    assert.match(row.cells.simd.text, /within 20 % at N = 256, 512, 1024/)
     assert.equal(row.threshold.kind, "plan")
 })
 
 test("20 % rule: the Node numbers lie outside at every size", () => {
     const row = rowFor(overviewRows(INPUT), "20 %")
-    assert.match(row.cells.realfft.text, /outside at all sizes/)
+    assert.match(row.cells.simd.text, /^realfft ÷ simd = .*outside at all sizes/)
+    assert.equal(row.cells.realfft.text, "")
+})
+
+test("20 % rule: simd-o1o4 is a candidate with its own ratio", () => {
+    const rows = overviewRows({...INPUT, times: timesFrom({...NODE, "simd-o1o4": [780, 4900]}),
+        options: [...OPTIONS, {name: "simd-o1o4", option: OPTIONS.length, complex: false}]})
+    assert.match(rowFor(rows, "20 %").cells["simd-o1o4"].text, /^realfft ÷ simd-o1o4 = .*outside at all sizes/)
 })
 
 test("before step ④ the inverse cells say which step to run", () => {

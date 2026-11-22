@@ -6,7 +6,7 @@ import {barChart, lineChart} from "./charts.mjs"
 import {batchNsFor, browserName, evaluateEnvironment, fetchHost, headerLine, stepOutcome} from "./checks.mjs"
 import {createClient} from "./client.mjs"
 import {GLOSSARY, HINTS, INTRO, QUESTION} from "./copy.mjs"
-import {KERNEL, LIBRARY, LIBRARY_LIMIT, overviewHtml, overviewMarkdown, overviewRows} from "./overview.mjs"
+import {KERNEL, LIBRARY, LIBRARY_LIMIT, SELECTION, overviewHtml, overviewMarkdown, overviewRows} from "./overview.mjs"
 import {buildReport, reportFileName} from "./report.mjs"
 import {createSequence, runAll, runStep, STEPS} from "./sequence.mjs"
 
@@ -167,7 +167,7 @@ const libraryRule = (direction) => {
         return ""
     }
     return `<h4>${LIBRARY} against every option: the 20 % rule</h4>` + hint(HINTS.libraryChart)
-        + `<p>The decision overview at the top reads off ${LIBRARY} ÷ ${KERNEL}.</p>`
+        + `<p>The decision overview at the top reads off ${LIBRARY} ÷ ${KERNEL} and ${LIBRARY} ÷ ${SELECTION}.</p>`
         + lineChart({series, xLabel: "N", yLabel: `${LIBRARY} time ÷ option time`, logX: true, logY: false,
             reference: {value: LIBRARY_LIMIT, label: "20 % limit: library preferred below"}})
 }

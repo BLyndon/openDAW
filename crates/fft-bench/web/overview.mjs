@@ -5,7 +5,7 @@ import {microseconds} from "../markdown.mjs"
 
 export const LIBRARY = "realfft"
 export const KERNEL = "simd"
-// simd with the outlook items O1 and O4 (docs/simd-outlook.md), shown beside it.
+// Round 2 candidate: simd with the outlook items O1 and O4 (docs/simd-outlook.md).
 export const SELECTION = "simd-o1o4"
 export const REFERENCE = "rfft"
 export const COLUMNS = [LIBRARY, KERNEL, SELECTION, REFERENCE]
@@ -52,12 +52,12 @@ const timingRows = ({times, options, sizes}) => {
         const lowest = Math.min(...ratios)
         return cell(`${lowest.toFixed(1)}× (lowest of N = ${SPEED_SIZES.join(", ")})`, lowest >= SPEED_TARGET ? "pass" : "fail")
     }
-    const libraryRule = () => {
+    const libraryRule = (kernel) => {
         if (!ran("forward")) {
             return pending("forward")
         }
         const perSize = sizes.map((n) => {
-            const ratios = ["forward", "inverse"].map((field) => times(LIBRARY, n)?.[field] / times(KERNEL, n)?.[field])
+            const ratios = ["forward", "inverse"].map((field) => times(LIBRARY, n)?.[field] / times(kernel, n)?.[field])
                 .filter(Number.isFinite)
             return {n, ratios}
         }).filter(({ratios}) => ratios.length > 0)
@@ -67,7 +67,7 @@ const timingRows = ({times, options, sizes}) => {
         const all = perSize.flatMap(({ratios}) => ratios)
         const within = perSize.filter(({ratios}) => Math.max(...ratios) <= LIBRARY_LIMIT + RATIO_TOLERANCE).map(({n}) => n)
         const directions = ran("inverse") ? "forward and inverse" : "forward only"
-        return cell(`${LIBRARY} ÷ ${KERNEL} = ${Math.min(...all).toFixed(2)}–${Math.max(...all).toFixed(2)} (${directions}); `
+        return cell(`${LIBRARY} ÷ ${kernel} = ${Math.min(...all).toFixed(2)}–${Math.max(...all).toFixed(2)} (${directions}); `
             + (within.length === 0 ? "outside at all sizes" : `within 20 % at N = ${within.join(", ")}`))
     }
     const stretch = CONSUMERS.find((consumer) => consumer.split)
@@ -86,8 +86,9 @@ const timingRows = ({times, options, sizes}) => {
             source: "step ④"},
         {criterion: `Speed-up vs. ${REFERENCE}, N = ${SPEED_SIZES[0]}–${SPEED_SIZES.at(-1)}`,
             threshold: {text: `≥ ${SPEED_TARGET}×`, kind: "proposal"}, cells: allColumns(speedUp), source: "step ③"},
-        {criterion: `20 % rule: ${LIBRARY} ÷ ${KERNEL}`, threshold: {text: `≤ ${LIBRARY_LIMIT} → prefer the library, if it passes all gates`, kind: "plan"},
-            cells: {[LIBRARY]: libraryRule(), [KERNEL]: cell(""), [SELECTION]: cell(""), [REFERENCE]: cell("")}, source: "steps ③ and ④"},
+        {criterion: `20 % rule: ${LIBRARY} ÷ own kernel`, threshold: {text: `≤ ${LIBRARY_LIMIT} → prefer the library, if it passes all gates`, kind: "plan"},
+            cells: {[LIBRARY]: cell(""), [KERNEL]: libraryRule(KERNEL), [SELECTION]: libraryRule(SELECTION), [REFERENCE]: cell("")},
+            source: "steps ③ and ④"},
         {criterion: `Time-stretch budget, ${STRETCH_VOICES} regions`, threshold: {text: "≤ P % of a render quantum", kind: "open"},
             cells: allColumns(budget), source: "step ⑥ model, steps ③ and ④ times"}
     ]
