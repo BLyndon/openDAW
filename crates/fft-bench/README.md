@@ -18,11 +18,12 @@ cargo build --release --target wasm32-unknown-unknown
 node web/serve.mjs          # then open http://127.0.0.1:8080/ and press "Run all"
 ```
 
-**Check that everything is correct** (about 10 s):
+**Check that everything is correct** (about 10 s, plus about 30 s for `bits.mjs`):
 
 ```sh
 cargo test                                   # accuracy gates, faithful copies, allocations
 node --test *.test.mjs web/*.test.mjs        # runners, statistics, page modules
+node bits.mjs                                # simd: wasm build gives the native bits (after the wasm build)
 ```
 
 **Take a full measurement run** for the evaluation: follow the [runbook](docs/runbook.md) (about 30 minutes plus a

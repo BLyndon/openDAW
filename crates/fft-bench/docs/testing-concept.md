@@ -48,7 +48,8 @@ To answer them, the same options run in three places. Each answers what the othe
 ### Gaps between the approaches
 
 - **Accuracy of the wasm build** is not measured in wasm. For `simd` the native tests cover it: the scalar `V4`
-  path performs the same operations in the same order as the SIMD128 one, bit for bit.
+  path performs the same operations in the same order as the SIMD128 one, and `node bits.mjs` checks that both
+  builds give the same bits.
 - **What the browser cannot measure** (accuracy, allocations, size, `no_std`) comes from approach 1 via
   `web/facts.json`, so the page still shows every criterion.
 
@@ -99,6 +100,7 @@ flowchart TD
 | `realfft`      | candidate | `realfft`/`rustfft`, the library alternative from `future-plans/simd-fft.md`; open gate questions: third-party DSP, needs `std` |
 | `simd`         | candidate | The own SIMD128 kernel, a prototype: radix-4 Stockham, real input ([how it works](simd-kernel.md))                              |
 | `simd-complex` | candidate | The same kernel as a full complex FFT with a stage-wise API, the shape the time-stretch needs                                   |
+| `simd-o1o4`    | candidate | `simd` with the outlook items O1 and O4 ([simd-outlook.md](simd-outlook.md)); same bits as `simd`                               |
 
 ## Test levels
 

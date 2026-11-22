@@ -23,7 +23,7 @@ flowchart LR
     library_crate[(realfft / rustfft)]
     subgraph harness[crates/fft-bench]
         library[library<br/>signals · f64 reference DFT<br/>metrics · analyser contract]
-        options[options::ALL<br/>analyser · rfft · signalsmith · reverted<br/>realfft · simd · simd-complex]
+        options[options::ALL<br/>analyser · rfft · signalsmith · reverted<br/>realfft · simd · simd-complex · simd-o1o4]
         consumers[tests/ · benches/<br/>examples/report · examples/facts<br/>src/wasm.rs for the JavaScript runners]
     end
     production --> library
@@ -75,7 +75,7 @@ exports iterate over it; a new option is measured everywhere by adding one entry
 | Role        | Options                                   | Treatment in tests |
 |-------------|-------------------------------------------|--------------------|
 | `Baseline`  | `analyser`, `rfft`, `signalsmith`, `reverted` | sanity bounds; `rfft` sets the candidate gate |
-| `Candidate` | `realfft`, `simd`, `simd-complex`         | candidate gates    |
+| `Candidate` | `realfft`, `simd`, `simd-complex`, `simd-o1o4` | candidate gates |
 
 ## Options and adapters
 
@@ -88,6 +88,7 @@ exports iterate over it; a new option is measured everywhere by adding one entry
 | `realfft`     | `realfft` 3.5 / `rustfft` 6.4           | interleaved `Complex<f32>` ↔ split; inverse scaled by 1/n; input copied (realfft uses it as scratch) |
 | `simd`        | `src/options/simd/kernel.rs` (prototype, [how it works](simd-kernel.md)) | none; its real FFT already matches `RealFft` |
 | `simd-complex`| the same kernel's complex `Fft`         | `ComplexAsReal`; its stages are the steps of the stage-wise API |
+| `simd-o1o4`   | `src/options/outlook/kernel.rs` with the items O1 and O4 ([outlook](simd-outlook.md)) | none; also the stage `S0+O1+O4` of the stages page |
 
 **Accuracy:** every test signal goes through each option and through the f64 reference DFT; `metrics` compares
 the two, the tests apply the thresholds, the report prints the values. For the output contract,
@@ -124,6 +125,7 @@ Each stub is one small module that calls one option the way its consumer does, a
 | `empty` | `support` only | size baseline of the `no_std` stubs |
 | `analyser`, `rfft`, `signalsmith` | `support` + the option's crate | `no_std` link check and size |
 | `simd` | `support` + the kernel files via `#[path]` | `no_std` link check and size |
+| `simd-o1o4` | `support` + the `simd` and outlook kernel files via `#[path]`, re-exported under their harness paths | `no_std` link check and size |
 | `realfft` | `support` + `realfft`, `no_std` | `no_std` link check (fails: `std` brings its own panic handler) |
 | `empty-std`, `realfft-std` | plain `std` modules | size of `realfft` where it can link |
 
@@ -148,7 +150,8 @@ any Rust source is newer.
 
 The wasm module is driven from JavaScript twice: by `run.mjs` in Node and by the page in `web/`. Both share
 the statistics, the measurements, the Markdown tables and the budget model, so a browser report and
-`node.md` are built by the same code and compare section by section.
+`node.md` are built by the same code and compare section by section. A third, `bits.mjs`, is a check, not a
+runner: it compares the module's `simd` and `simd-complex` output with the native bits from `examples/bits.rs`.
 
 **How to read the diagram:** arrow A → B means B uses A (imports it, loads it or is served it).
 

@@ -21,13 +21,13 @@ differs (**If not**). Background on the method is in the
 
 ## Before you start
 
-| Needed | Check | Install |
-|---|---|---|
+| Needed                           | Check                                                           | Install                                    |
+| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------ |
 | Rust stable with the wasm target | `rustup target list --installed` shows `wasm32-unknown-unknown` | `rustup target add wasm32-unknown-unknown` |
-| Node 24 or newer | `node --version` | — |
-| binaryen (`wasm-opt`) | `wasm-opt --version` | `brew install binaryen` |
-| gzip, git | present on macOS and Linux | — |
-| Chrome, Firefox, Safari | current releases, for step 7 | — |
+| Node 24 or newer                 | `node --version`                                                | —                                          |
+| binaryen (`wasm-opt`)            | `wasm-opt --version`                                            | `brew install binaryen`                    |
+| gzip, git                        | present on macOS and Linux                                      | —                                          |
+| Chrome, Firefox, Safari          | current releases, for step 7                                    | —                                          |
 
 Time for a full run: about 30 minutes, most of it the native benchmarks in step 4 and `node facts.mjs` in
 step 7, plus a few minutes per browser.
@@ -68,6 +68,7 @@ measured until this passes.
 ```sh
 cargo test
 node --test *.test.mjs web/*.test.mjs
+node bits.mjs                                # after the wasm build in step 1
 ```
 
 **Expected:**
@@ -203,28 +204,28 @@ The page times in a Worker, not on the audio thread; why is in
 When the prototype or another kernel joins the registry (see
 [Adding an option](developer-guide.md#adding-an-option)):
 
-| Rerun | Why |
-|---|---|
-| Steps 2 and 3 | gates and accuracy for the new option |
-| Step 5 | its wasm timings and its row in the render budget |
-| Step 7 | its timings in the browsers; the page lists every registered option |
-| Step 6, after adding a stub to `size/stubs/` and to both scripts | its size and whether it links `no_std` |
-| `node facts.mjs` | its row in the page's decision overview |
-| Step 4 | only if its native numbers matter |
+| Rerun                                                            | Why                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Steps 2 and 3                                                    | gates and accuracy for the new option                               |
+| Step 5                                                           | its wasm timings and its row in the render budget                   |
+| Step 7                                                           | its timings in the browsers; the page lists every registered option |
+| Step 6, after adding a stub to `size/stubs/` and to both scripts | its size and whether it links `no_std`                              |
+| `node facts.mjs`                                                 | its row in the page's decision overview                             |
+| Step 4                                                           | only if its native numbers matter                                   |
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `target may not be installed` | wasm target missing | `rustup target add wasm32-unknown-unknown` |
-| wasm build fails on SIMD intrinsics | a `RUSTFLAGS` variable replaces `.cargo/config.toml` (`+simd128`) | `unset RUSTFLAGS` |
-| `run.mjs` fails to instantiate the module | module missing or stale | rebuild with `cargo build --release --target wasm32-unknown-unknown` |
-| `requires panic strategy 'abort'` and an output filename collision warning | examples and benches built in one `cargo build` | build them separately, as in step 1 |
-| `could not find Cargo.toml` | shell is not in `crates/fft-bench` | `cd crates/fft-bench` |
-| First `cargo bench` takes minutes | Criterion and its dependencies are downloaded and built once | wait; later runs start immediately |
-| Numbers jump between runs | busy machine | step 1 again; compare only numbers from one run |
-| Browser page: step 1 ✘ "not cross-origin isolated" | page opened through another server or from a file | `node web/serve.mjs`, open the URL it prints |
-| Browser page: step 2 ⚠ "module older than its sources" | Rust sources changed after the last wasm build | `cargo build --release --target wasm32-unknown-unknown`, reload |
-| Browser page: overview says "facts file missing" or "Facts older than the sources" | `web/facts.json` absent or not regenerated | `node facts.mjs`, reload |
-| Browser page: port 8080 in use | another dev server runs there | `node web/serve.mjs --port 8090` |
-| `wasm-opt` rejects a module | its feature flags differ from the build | keep `size.sh`'s feature list equal to `build-wasm.sh` |
+| Symptom                                                                            | Cause                                                             | Fix                                                                  |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `target may not be installed`                                                      | wasm target missing                                               | `rustup target add wasm32-unknown-unknown`                           |
+| wasm build fails on SIMD intrinsics                                                | a `RUSTFLAGS` variable replaces `.cargo/config.toml` (`+simd128`) | `unset RUSTFLAGS`                                                    |
+| `run.mjs` fails to instantiate the module                                          | module missing or stale                                           | rebuild with `cargo build --release --target wasm32-unknown-unknown` |
+| `requires panic strategy 'abort'` and an output filename collision warning         | examples and benches built in one `cargo build`                   | build them separately, as in step 1                                  |
+| `could not find Cargo.toml`                                                        | shell is not in `crates/fft-bench`                                | `cd crates/fft-bench`                                                |
+| First `cargo bench` takes minutes                                                  | Criterion and its dependencies are downloaded and built once      | wait; later runs start immediately                                   |
+| Numbers jump between runs                                                          | busy machine                                                      | step 1 again; compare only numbers from one run                      |
+| Browser page: step 1 ✘ "not cross-origin isolated"                                 | page opened through another server or from a file                 | `node web/serve.mjs`, open the URL it prints                         |
+| Browser page: step 2 ⚠ "module older than its sources"                             | Rust sources changed after the last wasm build                    | `cargo build --release --target wasm32-unknown-unknown`, reload      |
+| Browser page: overview says "facts file missing" or "Facts older than the sources" | `web/facts.json` absent or not regenerated                        | `node facts.mjs`, reload                                             |
+| Browser page: port 8080 in use                                                     | another dev server runs there                                     | `node web/serve.mjs --port 8090`                                     |
+| `wasm-opt` rejects a module                                                        | its feature flags differ from the build                           | keep `size.sh`'s feature list equal to `build-wasm.sh`               |
