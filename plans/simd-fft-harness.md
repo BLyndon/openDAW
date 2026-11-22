@@ -62,7 +62,7 @@ Two references:
 - Time per call for N = 256–8192: throughput (many calls) and single call (per-call overhead
   matters for the time-stretch, which calls the FFT per voice per block)
 - Median of many warm runs, variance reported; target confidence interval ≤ 5%
-- Native (Criterion), Node, and optionally Chrome, Firefox, Safari
+- Native, Node, and Chrome, Firefox, Safari
 - Time per call also reported as % of the 128-frame render quantum (≈ 2.7 ms at 48 kHz)
 
 ### 4. Decision criteria (proposal)
@@ -93,7 +93,7 @@ Gates (an option failing one is excluded):
 ## Deliverables
 
 1. Harness (Rust, native + Node) — first PR, no production change
-2. Optional: browser test page — separate PR
+2. Browser test page — separate PR
 3. Prototype kernel on an unmerged branch
 4. Issue with results: numbers, binary sizes, stage/shuffle finding, recommendation
 
