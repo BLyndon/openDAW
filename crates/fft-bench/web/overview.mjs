@@ -10,7 +10,7 @@ export const COLUMNS = [LIBRARY, KERNEL, REFERENCE]
 // future-plans/simd-fft.md: prefer the library if it is within ~20 % of the hand-written kernel.
 export const LIBRARY_LIMIT = 1.2
 export const SPEED_TARGET = 4
-export const SPEED_SIZES = [1024, 2048, 4096]
+export const SPEED_SIZES = [1024, 2048, 4096, 8192, 16384]
 export const TIME_SIZES = [1024, 4096]
 export const STRETCH_VOICES = 16
 export const FACTS_MISSING = "facts file missing: run node facts.mjs"

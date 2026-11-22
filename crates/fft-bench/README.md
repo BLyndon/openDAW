@@ -1,43 +1,41 @@
 # fft-bench
 
-Benchmark and accuracy harness for FFT implementations. It runs every registered FFT option on the same
-signals and sizes and reports how accurate and how fast each one is.
+Compares FFT implementations for the engine's WebAssembly build: how accurate and how fast each one is.
 
-The options include the scalar FFTs on the engine's render path (`dsp::analyser`, `dsp::rfft`,
-`signalsmith::fft`), so SIMD kernels can be compared against them. Background: `future-plans/simd-fft.md`.
+It exists to answer one question from `future-plans/simd-fft.md`: should the engine depend on the library
+`realfft`/`rustfft`, or use a small SIMD128 kernel of its own (`simd`, a prototype in this crate)? Today's scalar
+FFTs on the render path are measured alongside as baselines.
 
-Standalone crate, excluded from the workspace. It changes no production code.
+It is a standalone crate, excluded from the workspace, and changes no production code.
 
-## Quick start
+## Three ways in
+
+**See the results.** A browser page runs every option and puts all decision criteria on one page.
 
 ```sh
 cd crates/fft-bench
-cargo test                                           # accuracy and faithful-copy tests, ≈ 2 s
-cargo run --release --example report > report.md     # accuracy tables as Markdown
+cargo build --release --target wasm32-unknown-unknown
+node web/serve.mjs          # then open http://127.0.0.1:8080/ and press "Run all"
 ```
+
+**Check that everything is correct** (about 10 s):
+
+```sh
+cargo test                                   # accuracy gates, faithful copies, allocations
+node --test *.test.mjs web/*.test.mjs        # runners, statistics, page modules
+```
+
+**Take a full measurement run** for the evaluation: follow the [runbook](docs/runbook.md) (about 30 minutes plus a
+few minutes per browser).
+
+The current results and what the analysis found are in `analysis/README.md` at the repository root.
 
 ## Documents
 
-| Document                                   | Content                                                                                  |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [Testing concept](docs/testing-concept.md) | questions, options and roles, test levels, signals, metrics, thresholds and their origin |
-| [Workflow](docs/workflow.md)               | evaluation flow, commands, adding an option, taking a measurement                        |
-| [Architecture](docs/architecture.md)       | modules, the `RealFft` interface, registry, adapters, build setup, dependencies          |
-| [Runbook](docs/runbook.md)                 | a complete measurement run step by step: commands, expected results, troubleshooting      |
-
-## Status
-
-| Part                                                              | State                |
-| ----------------------------------------------------------------- | -------------------- |
-| `RealFft` interface, option registry                              | done                 |
-| Options: `analyser`, `rfft`, `signalsmith`, `reverted`, `realfft` | done                 |
-| f64 reference DFT, test signals, metrics, analyser contract       | done                 |
-| Accuracy tests, faithful-copy tests, accuracy report              | done                 |
-| Allocation test                                                   | done                 |
-| Native benchmarks (Criterion), environment record                 | done                 |
-| Wasm exports and Node runner, per-stage timing                    | done                 |
-| Budget-per-consumer report                                        | done                 |
-| Binary size and `no_std` checks                                   | done                 |
-| Browser page (Chrome, Firefox, Safari): `node web/serve.mjs`      | done                 |
-| Option `simd` (prototype SIMD128 kernel), docs/simd-kernel.md      | prototype            |
-| Decision page: overview, facts file (`node facts.mjs`)            | done                 |
+| Read this                                  | when you want to know …                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| [Testing concept](docs/testing-concept.md) | what is tested, in which order, against what, and where thresholds come from   |
+| [Developer guide](docs/developer-guide.md) | the everyday commands, how to add an option, the rules while working          |
+| [Runbook](docs/runbook.md)                 | how to take a complete measurement run, step by step, with expected results    |
+| [Architecture](docs/architecture.md)       | how the code is organised: Rust library, options, JavaScript runners, the page |
+| [SIMD kernel](docs/simd-kernel.md)         | how the prototype kernel works and what each optimisation is expected to gain  |

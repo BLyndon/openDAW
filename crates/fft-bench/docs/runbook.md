@@ -3,7 +3,7 @@
 A complete measurement run, start to finish: the numbers that go into the evaluation. Each step lists the
 command, the expected result when everything is in order (**Expected**), and what to do if the result
 differs (**If not**). Background on the method is in the
-[workflow](workflow.md) and the [testing concept](testing-concept.md).
+[developer guide](developer-guide.md) and the [testing concept](testing-concept.md).
 
 ## Contents
 
@@ -29,8 +29,8 @@ differs (**If not**). Background on the method is in the
 | gzip, git | present on macOS and Linux | — |
 | Chrome, Firefox, Safari | current releases, for step 7 | — |
 
-Time for a full run: about 25 minutes, most of it the native benchmarks in step 4, plus a few minutes
-per browser in step 7.
+Time for a full run: about 30 minutes, most of it the native benchmarks in step 4 and `node facts.mjs` in
+step 7, plus a few minutes per browser.
 
 All commands run from `crates/fft-bench` unless stated. Results go to a folder outside the crate, here
 `$RESULTS`, for example:
@@ -47,7 +47,8 @@ mkdir -p "$RESULTS"
 1. **Clean tree.** `git status` shows nothing to commit, so the hash in every result identifies the code.
    A result with `-dirty` in its environment header is not attributable.
 2. **Quiet machine.** Quit every application the run does not need (browsers, IDE indexing, sync and
-   backup clients, chat, video calls). Mains power, Low Power Mode off.
+   backup clients, chat, video calls). Mains power, Low Power Mode off. A busy machine once produced a
+   false 45 % gap between two copies of the same code; measured quietly, it was 15 %.
 3. **Build first, then wait.** Builds heat the machine. Build everything once, then give it a minute:
 
    ```sh
@@ -100,10 +101,8 @@ cargo run --release --example report > "$RESULTS/accuracy.md"
 
 ## 4. Native benchmarks
 
-**Purpose:** time per call on this machine's CPU, for development and copy fidelity, not for the decision.
-
-Development numbers only (natively `realfft` uses NEON or AVX, not SIMD128), but they show the scalar
-options and the copy fidelity on the same machine.
+**Purpose:** time per call on this machine's CPU, for development and copy fidelity, not for the decision
+(natively `realfft` uses NEON or AVX, not SIMD128).
 
 ```sh
 cargo bench --bench fft -- --measurement-time 10 --warm-up-time 3 > "$RESULTS/native.txt"
@@ -135,7 +134,8 @@ node run.mjs > "$RESULTS/node.md"
 
 - Finishes in about 30 seconds.
 - An environment table: Node and V8 versions, module hash, git hash, timer cost.
-- Throughput tables, single-call tables, the step table for `signalsmith`, the render budget per consumer.
+- Throughput tables, single-call tables, the step table for `signalsmith` and `simd-complex`, the render
+  budget per consumer.
 - No ⚠ in the tables. The one in the legend line does not count.
 
 **If not:** a ⚠ marks a point whose confidence interval stayed above 5 % after 120 batches. Rerun it
@@ -179,31 +179,13 @@ from the tests and size builds, in a few minutes. Run it after every code change
 the code, so its git hash matches. The page shows a warning when the file is older than the Rust sources.
 
 Open `http://127.0.0.1:8080/` in Chrome, Firefox and Safari, one browser at a time, with the tab in front
-and nothing else running. The page leads through seven steps; each one unlocks the next. Run Safari by hand:
-Playwright's WebKit is not Safari.
+and nothing else running, and press **Run all**. It runs the seven steps in order and stops at the first that
+fails; each step can also be run on its own. The **decision overview** at the top fills in as the steps finish.
+Run Safari by hand: Playwright's WebKit is not Safari. Step 7 downloads `browser-<browser>-<major version>.md`;
+move it to `$RESULTS`.
 
-**Expected:**
-
-- Step 1 ✔: cross-origin isolated, timer tick ≤ 20 µs (Chrome shows 5 µs), SIMD128 available.
-- Step 2 ✔: every registered option listed; the module hash equals the `module` line in `node.md`.
-- Steps 3–5 ✔, or ⚠ for single points only. Rerun those in steps 3 and 4 with their rerun button; step 5
-  names its flagged points and is run again as a whole.
-- No "tab was hidden" remark in any step.
-- Step 7 downloads `browser-<browser>-<major version>.md`. Move it to `$RESULTS`.
-- A few minutes per browser, most of it in step 5.
-
-**If not:**
-
-- **Step 1 ✘** names the cause: not isolated (the page was not served by `web/serve.mjs`), a coarse
-  timer, or no SIMD128. Nothing can be measured until it passes.
-- **"module older than its sources"** in step 2: rebuild the wasm module, reload the page.
-- **"tab was hidden"**: the browser throttled the page while it was in the background, and timings run
-  2–3× slow. Run the whole step again with the tab in front; rerunning single points keeps the remark.
-- **Remarks in the report**: every ⚠ reason of the run is listed under "Remarks" at the top of the report.
-- **Many ⚠ points**: the machine is busy; step 1 of this runbook again.
-
-The page times in a Worker, not in an AudioWorklet: a worklet has no high-resolution clock. The numbers
-are the browser's wasm engine on a background thread, not the audio thread itself.
+The page times in a Worker, not on the audio thread; why is in
+[Architecture](architecture.md#javascript-runners-and-the-browser-page).
 
 ## 8. Wrap up
 
@@ -219,7 +201,7 @@ are the browser's wasm engine on a background thread, not the audio thread itsel
 ## After adding an option
 
 When the prototype or another kernel joins the registry (see
-[Adding an option](workflow.md#adding-an-option)):
+[Adding an option](developer-guide.md#adding-an-option)):
 
 | Rerun | Why |
 |---|---|
@@ -227,6 +209,7 @@ When the prototype or another kernel joins the registry (see
 | Step 5 | its wasm timings and its row in the render budget |
 | Step 7 | its timings in the browsers; the page lists every registered option |
 | Step 6, after adding a stub to `size/stubs/` and to both scripts | its size and whether it links `no_std` |
+| `node facts.mjs` | its row in the page's decision overview |
 | Step 4 | only if its native numbers matter |
 
 ## Troubleshooting

@@ -26,6 +26,7 @@ test("speed-up row passes simd at ≥ 4× and labels the threshold a proposal", 
     const row = rowFor(overviewRows(INPUT), "Speed-up")
     assert.equal(row.cells.simd.status, "pass")
     assert.match(row.cells.simd.text, /^5\.9×/)
+    assert.match(row.cells.simd.text, /lowest of N = 1024, 2048, 4096, 8192, 16384/)
     assert.equal(row.cells.rfft.text, "1×")
     assert.equal(row.threshold.kind, "proposal")
 })
