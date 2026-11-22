@@ -1,0 +1,177 @@
+{
+  "generated": {
+    "git": "07195a22a-dirty",
+    "date": "2026-11-22",
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)"
+  },
+  "options": {
+    "analyser": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.428641545695122e-7,
+          "gate": null,
+          "pass": true
+        },
+        "roundTrip": null,
+        "contract": {
+          "worst": 0,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "size": {
+        "gzipAdded": 4506,
+        "crates": 5
+      },
+      "noStd": true,
+      "licence": "AGPL-3.0 (project)"
+    },
+    "rfft": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.5430679564805438e-7,
+          "gate": null,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 1.341104507446289e-7,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 1.8125283773974085e-7,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "size": {
+        "gzipAdded": 4544,
+        "crates": 5
+      },
+      "noStd": true,
+      "licence": "AGPL-3.0 (project)"
+    },
+    "signalsmith": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.428641545695122e-7,
+          "gate": null,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 1.043081283569336e-7,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 0,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "size": {
+        "gzipAdded": 4598,
+        "crates": 4
+      },
+      "noStd": true,
+      "licence": "AGPL-3.0 (project)"
+    },
+    "reverted": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.428641545695122e-7,
+          "gate": null,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 1.043081283569336e-7,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 0,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "licence": "AGPL-3.0 (project)"
+    },
+    "realfft": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.4859121212061004e-7,
+          "gate": 2.384185791015625e-7,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 8.940696716308594e-8,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 1.4500225442255063e-7,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "size": {
+        "gzipAdded": 172585,
+        "crates": 9
+      },
+      "noStd": false,
+      "licence": "realfft MIT · rustfft MIT OR Apache-2.0"
+    },
+    "simd": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.441578786926461e-7,
+          "gate": 2.384185791015625e-7,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 8.940696716308594e-8,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 1.8125283773974085e-7,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "size": {
+        "gzipAdded": 9454,
+        "crates": 3
+      },
+      "noStd": true,
+      "licence": "AGPL-3.0 (project)"
+    },
+    "simd-complex": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.3299451029496496e-7,
+          "gate": 2.384185791015625e-7,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 8.940696716308594e-8,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 2.1750338163382596e-7,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "licence": "AGPL-3.0 (project)"
+    }
+  }
+}

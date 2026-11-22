@@ -16,6 +16,7 @@ fs.writeFileSync(path.join(root, "run.mjs"), "secret")
 fs.writeFileSync(path.join(root, "src", "lib.rs"), "")
 const modulePath = path.join(root, "fft_bench.wasm")
 fs.writeFileSync(modulePath, new Uint8Array([0, 97, 115, 109]))
+fs.writeFileSync(path.join(root, "web", "facts.json"), "{}")
 const past = new Date(Date.now() - 60000)
 fs.utimesSync(path.join(root, "src", "lib.rs"), past, past)
 const server = createServer({root, modulePath, sourceDirs: [path.join(root, "src")]})
@@ -53,8 +54,19 @@ test("paths outside the allowlist are not served", async () => {
 
 test("environment reports git, host and module state", async () => {
     const environment = JSON.parse((await get("/environment")).body)
-    assert.deepEqual(Object.keys(environment).sort(), ["arch", "cpu", "git", "module", "moduleStale", "os"])
+    assert.deepEqual(Object.keys(environment).sort(), ["arch", "cpu", "factsStale", "git", "module", "moduleStale", "os"])
     assert.equal(environment.moduleStale, false)
+    assert.equal(environment.factsStale, false)
+})
+
+test("facts.json is served as JSON and reported stale once it is missing", async () => {
+    const facts = await get("/web/facts.json")
+    assert.equal(facts.status, 200)
+    assert.equal(facts.headers["content-type"], "application/json")
+    fs.renameSync(path.join(root, "web", "facts.json"), path.join(root, "web", "facts.moved"))
+    assert.equal((await get("/web/facts.json")).status, 404)
+    assert.equal(JSON.parse((await get("/environment")).body).factsStale, true)
+    fs.renameSync(path.join(root, "web", "facts.moved"), path.join(root, "web", "facts.json"))
 })
 
 test("a module older than a source file is stale", () => {

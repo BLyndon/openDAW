@@ -39,3 +39,5 @@ cargo run --release --example report > report.md     # accuracy tables as Markdo
 | Budget-per-consumer report                                        | done                 |
 | Binary size and `no_std` checks                                   | done                 |
 | Browser page (Chrome, Firefox, Safari): `node web/serve.mjs`      | done                 |
+| Option `simd` (prototype SIMD128 kernel), docs/simd-kernel.md      | prototype            |
+| Decision page: overview, facts file (`node facts.mjs`)            | done                 |

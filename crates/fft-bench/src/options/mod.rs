@@ -4,6 +4,7 @@ pub mod realfft;
 pub mod reverted;
 pub mod rfft;
 pub mod signalsmith;
+pub mod simd;
 
 use crate::RealFft;
 
@@ -27,11 +28,13 @@ fn create<T: RealFft + 'static>(n: usize) -> Box<dyn RealFft> {
     Box::new(T::new(n))
 }
 
-/// Every option the harness measures. The Day-2 prototype joins `realfft` as `Role::Candidate`.
-pub const ALL: [Entry; 5] = [
+/// Every option the harness measures.
+pub const ALL: [Entry; 7] = [
     Entry { name: "analyser", role: Role::Baseline, complex: true, create: create::<analyser::AnalyserFft> },
     Entry { name: "rfft", role: Role::Baseline, complex: false, create: create::<rfft::RfftOption> },
     Entry { name: "signalsmith", role: Role::Baseline, complex: true, create: create::<signalsmith::SignalsmithFft> },
     Entry { name: "reverted", role: Role::Baseline, complex: true, create: create::<reverted::RevertedFft> },
-    Entry { name: "realfft", role: Role::Candidate, complex: false, create: create::<realfft::RealFftOption> }
+    Entry { name: "realfft", role: Role::Candidate, complex: false, create: create::<realfft::RealFftOption> },
+    Entry { name: "simd", role: Role::Candidate, complex: false, create: create::<simd::SimdRealFft> },
+    Entry { name: "simd-complex", role: Role::Candidate, complex: true, create: create::<simd::SimdComplexFft> }
 ];

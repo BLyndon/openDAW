@@ -9,13 +9,13 @@ use crate::{bins, RealFft};
 pub trait ComplexFft {
     fn new(n: usize) -> Self;
     fn size(&self) -> usize;
-    fn forward(&self, re: &mut [f32], im: &mut [f32]);
-    fn inverse(&self, re: &mut [f32], im: &mut [f32]);
+    fn forward(&mut self, re: &mut [f32], im: &mut [f32]);
+    fn inverse(&mut self, re: &mut [f32], im: &mut [f32]);
     /// See `RealFft::steps`; 0 if the transform cannot run step by step.
     fn steps(&self) -> usize {
         0
     }
-    fn step(&self, _re: &mut [f32], _im: &mut [f32], _step: usize) {}
+    fn step(&mut self, _re: &mut [f32], _im: &mut [f32], _step: usize) {}
 }
 
 pub struct ComplexAsReal<F: ComplexFft> {

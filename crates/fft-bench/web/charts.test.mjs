@@ -67,3 +67,24 @@ test("barChart: the legend lists only options that have a bar", () => {
     assert.equal(count(svg, /class="legend-item"/g), 2)
     assert.doesNotMatch(svg, />analyser</)
 })
+
+test("lineChart: a long legend wraps into rows inside the chart and moves the plot down", () => {
+    const names = ["analyser", "rfft", "signalsmith", "reverted", "realfft", "simd", "simd-complex"]
+    const svg = lineChart({series: names.map((name, index) => series(name, index + 1, 0.001 * (index + 1))), xLabel: "N", yLabel: "µs",
+        logX: true, logY: true})
+    const items = [...svg.matchAll(/class="legend-item" transform="translate\(([\d.]+),([\d.]+)\)"><rect[^>]*\/><text[^>]*>([^<]+)</g)]
+    assert.equal(items.length, names.length)
+    assert.ok(items.every(([, x, , name]) => Number(x) + 18 + name.length * 7 <= 640), "every item ends inside the chart")
+    assert.ok(new Set(items.map(([, , y]) => y)).size > 1, "the items wrap into a second row")
+    const [, height] = svg.match(/viewBox="0 0 640 ([\d.]+)"/)
+    assert.ok(Number(height) > 320, "the chart grows by the extra rows")
+})
+
+test("lineChart: a reference line is drawn at its value and the axis reaches it", () => {
+    const svg = lineChart({series: [{name: "realfft ÷ simd", slot: 5, points: [[256, 0.5], [1024, 0.8]]}], xLabel: "N", yLabel: "ratio",
+        logX: true, logY: false, reference: {value: 1.2, label: "20 % limit"}})
+    assert.equal(count(svg, /<line class="reference"/g), 1)
+    assert.match(svg, />20 % limit</)
+    const [, y] = svg.match(/<line class="reference"[^>]*y1="([\d.]+)"/)
+    assert.ok(Number(y) >= 40, `reference at ${y} lies inside the plot`)
+})

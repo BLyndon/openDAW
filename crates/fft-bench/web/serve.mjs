@@ -7,7 +7,7 @@ import {gitRevision, hostInfo, moduleIsStale} from "../host.mjs"
 
 const DEFAULT_PORT = 8080
 const SHARED_MODULES = ["stats.mjs", "measure.mjs", "budget.mjs", "markdown.mjs"]
-const CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".mjs": "text/javascript", ".css": "text/css", ".wasm": "application/wasm"}
+const CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".mjs": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".json": "application/json"}
 const ISOLATION = {"Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Embedder-Policy": "require-corp"}
 
 // Only files listed here are served; request paths are looked up, never joined onto the file system.
@@ -16,6 +16,7 @@ const routes = (root, modulePath) => {
     const pageFiles = fs.readdirSync(web).filter((name) => !name.endsWith(".test.mjs") && name !== "serve.mjs")
     return new Map([
         ["/", path.join(web, "index.html")],
+        ["/web/facts.json", path.join(web, "facts.json")],
         ["/fft_bench.wasm", modulePath],
         ...SHARED_MODULES.map((name) => [`/${name}`, path.join(root, name)]),
         ...pageFiles.map((name) => [`/web/${name}`, path.join(web, name)])])
@@ -27,7 +28,7 @@ export const createServer = ({root, modulePath, sourceDirs}) => {
         const route = new URL(request.url, "http://localhost").pathname
         if (route === "/environment") {
             const body = JSON.stringify({git: gitRevision(), ...hostInfo(), module: path.relative(root, modulePath),
-                moduleStale: moduleIsStale(modulePath, sourceDirs)})
+                moduleStale: moduleIsStale(modulePath, sourceDirs), factsStale: moduleIsStale(path.join(root, "web", "facts.json"), sourceDirs)})
             response.writeHead(200, {...ISOLATION, "Content-Type": "application/json"}).end(body)
             return
         }

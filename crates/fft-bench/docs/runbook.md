@@ -157,7 +157,7 @@ size/nostd-check.sh > "$RESULTS/nostd.md"
 **Expected:**
 
 - Both scripts print a Markdown table, together in about 30 seconds.
-- `nostd-check.sh` shows `yes` for `empty`, `analyser`, `rfft` and `signalsmith`.
+- `nostd-check.sh` shows `yes` for `empty`, `analyser`, `rfft`, `signalsmith` and `simd`.
 - `nostd-check.sh` shows **no** for `realfft`, with a duplicate `panic_impl`. This is a finding, not a
   failure: `std` brings a panic handler that collides with the engine's.
 
@@ -166,11 +166,17 @@ dependency started to need `std`; read its first error line in the table.
 
 ## 7. Browsers
 
-**Purpose:** the timings that count, in the runtimes the engine actually runs in.
+**Purpose:** the timings that count, in the runtimes the engine actually runs in, next to the criteria a
+browser cannot measure.
 
 ```sh
+node facts.mjs
 node web/serve.mjs
 ```
+
+`node facts.mjs` refreshes `web/facts.json` (accuracy gates, allocations, wasm size, `no_std`, licences)
+from the tests and size builds, in a few minutes. Run it after every code change and commit the file with
+the code, so its git hash matches. The page shows a warning when the file is older than the Rust sources.
 
 Open `http://127.0.0.1:8080/` in Chrome, Firefox and Safari, one browser at a time, with the tab in front
 and nothing else running. The page leads through seven steps; each one unlocks the next. Run Safari by hand:
@@ -236,5 +242,6 @@ When the prototype or another kernel joins the registry (see
 | Numbers jump between runs | busy machine | step 1 again; compare only numbers from one run |
 | Browser page: step 1 ✘ "not cross-origin isolated" | page opened through another server or from a file | `node web/serve.mjs`, open the URL it prints |
 | Browser page: step 2 ⚠ "module older than its sources" | Rust sources changed after the last wasm build | `cargo build --release --target wasm32-unknown-unknown`, reload |
+| Browser page: overview says "facts file missing" or "Facts older than the sources" | `web/facts.json` absent or not regenerated | `node facts.mjs`, reload |
 | Browser page: port 8080 in use | another dev server runs there | `node web/serve.mjs --port 8090` |
 | `wasm-opt` rejects a module | its feature flags differ from the build | keep `size.sh`'s feature list equal to `build-wasm.sh` |

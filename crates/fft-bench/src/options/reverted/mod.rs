@@ -19,11 +19,11 @@ impl ComplexFft for Fft {
         Fft::size(self)
     }
 
-    fn forward(&self, re: &mut [f32], im: &mut [f32]) {
+    fn forward(&mut self, re: &mut [f32], im: &mut [f32]) {
         Fft::forward(self, re, im)
     }
 
-    fn inverse(&self, re: &mut [f32], im: &mut [f32]) {
+    fn inverse(&mut self, re: &mut [f32], im: &mut [f32]) {
         Fft::inverse(self, re, im)
     }
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>fft-bench browser run</title>
+    <title>fft-bench · Library or own kernel?</title>
     <style>
         :root {
             color-scheme: light;
@@ -90,14 +90,6 @@
             margin: 0;
             flex: 1;
         }
-        .purpose, .expected {
-            margin: 6px 0 0;
-            color: var(--text-secondary);
-        }
-        .expected strong {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
         button {
             font: inherit;
             padding: 6px 16px;
@@ -112,6 +104,13 @@
             color: var(--text-muted);
             border-color: var(--border);
             cursor: default;
+        }
+        .run-all {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: var(--text-secondary);
         }
         button.small {
             padding: 0 8px;
@@ -168,6 +167,64 @@
             overflow-x: auto;
             font-size: 12px;
         }
+        .intro p {
+            margin: 8px 0;
+            color: var(--text-secondary);
+        }
+        .overview-section h2, h2.part {
+            font-size: 17px;
+            margin: 0 0 8px;
+        }
+        h2.part {
+            margin: 24px 0 12px;
+        }
+        p.hint {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin: 8px 0 4px;
+        }
+        p.explain {
+            margin: 4px 0 0;
+            color: var(--text-secondary);
+        }
+        p.explain strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        table.overview td {
+            text-align: left;
+            white-space: normal;
+            vertical-align: top;
+            padding-right: 16px;
+        }
+        table.overview th {
+            text-align: left;
+        }
+        table.overview td.pass { color: var(--ok); }
+        table.overview td.fail { color: var(--fail); }
+        table.overview td.pending, table.overview td.source, table.overview td.threshold { color: var(--text-muted); }
+        table.overview td.missing, p.stale { color: var(--warn); }
+        .glossary {
+            margin-bottom: 16px;
+        }
+        .glossary summary {
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .glossary dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 16px;
+            font-size: 13px;
+            margin: 8px 0 0;
+        }
+        .glossary dt {
+            font-weight: 600;
+        }
+        .glossary dd {
+            margin: 0;
+            color: var(--text-secondary);
+        }
         .hidden {
             display: none;
         }
@@ -175,8 +232,21 @@
 </head>
 <body>
 <main>
-    <h1>fft-bench · browser run</h1>
+    <h1>fft-bench · Library or own kernel?</h1>
+    <div class="intro" id="intro"></div>
     <div class="environment" id="environment">Environment not checked yet.</div>
+    <div class="run-all"><button id="run-all">Run all</button><span>Runs every step in order and stops at the first that fails.</span></div>
+    <section class="overview-section">
+        <h2>Decision overview</h2>
+        <div id="overview-hint"></div>
+        <p class="stale hidden" id="facts-stale">Facts older than the sources: run node facts.mjs, then reload.</p>
+        <div class="results" id="overview"></div>
+    </section>
+    <details class="glossary" open>
+        <summary>How to read this page</summary>
+        <dl id="glossary"></dl>
+    </details>
+    <h2 class="part">How it was measured</h2>
     <div id="steps">If this text stays, the page script did not run: serve the page with node web/serve.mjs and open the URL it prints.</div>
 </main>
 <script type="module" src="/web/page.mjs"></script>

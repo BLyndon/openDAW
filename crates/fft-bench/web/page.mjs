@@ -5,8 +5,10 @@ import {CI_TARGET} from "../stats.mjs"
 import {barChart, lineChart} from "./charts.mjs"
 import {batchNsFor, browserName, evaluateEnvironment, fetchHost, headerLine, stepOutcome} from "./checks.mjs"
 import {createClient} from "./client.mjs"
+import {GLOSSARY, HINTS, INTRO} from "./copy.mjs"
+import {KERNEL, LIBRARY, LIBRARY_LIMIT, overviewHtml, overviewMarkdown, overviewRows} from "./overview.mjs"
 import {buildReport, reportFileName} from "./report.mjs"
-import {createSequence, runStep, STEPS} from "./sequence.mjs"
+import {createSequence, runAll, runStep, STEPS} from "./sequence.mjs"
 
 const SIZES = [256, 512, 1024, 2048, 4096, 8192, 16384]
 const NUMBERS = ["①", "②", "③", "④", "⑤", "⑥", "⑦"]
@@ -15,6 +17,9 @@ const sequence = createSequence()
 const browser = browserName(navigator.userAgent)
 const request = createClient(new Worker(new URL("./worker.mjs", import.meta.url), {type: "module"}))
 let wasHidden = false
+let runningAll = false
+let facts = undefined
+let factsMissing = false
 document.addEventListener("visibilitychange", () => wasHidden ||= document.hidden)
 
 const escape = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -22,6 +27,7 @@ const key = (name, n) => `${name}/${n}`
 const options = () => sequence.data("module").options
 const slot = (option) => option.option + 1
 const batchNs = () => sequence.data("environment").batchNs
+const hint = (text) => `<p class="hint">ⓘ ${escape(text)}</p>`
 
 // Renders the Markdown this harness writes (headings, tables, paragraphs) so the page shows what the report says.
 const markdownToHtml = (lines) => {
@@ -51,24 +57,51 @@ const markdownToHtml = (lines) => {
     return html.join("")
 }
 
+document.getElementById("intro").innerHTML = INTRO.map((paragraph) => `<p>${escape(paragraph)}</p>`).join("")
+document.getElementById("glossary").innerHTML = GLOSSARY.map(([term, explanation]) => `<dt>${escape(term)}</dt><dd>${escape(explanation)}</dd>`).join("")
+document.getElementById("overview-hint").innerHTML = hint(HINTS.overview)
 document.getElementById("steps").replaceChildren()
 const sections = new Map(STEPS.map((step, index) => {
     const section = document.createElement("section")
     section.innerHTML = `<div class="step-head"><h2>${NUMBERS[index]} ${escape(step.title)}</h2><button>Run</button></div>`
-        + `<p class="purpose">${escape(step.purpose)}</p><p class="expected"><strong>Expected:</strong> ${escape(step.expected)}</p>`
+        + [["What", step.what], ["Why", step.why], ["How", step.how], ["Expected", step.expected]]
+            .map(([label, text]) => `<p class="explain"><strong>${label}:</strong> ${escape(text)}</p>`).join("")
         + `<div class="outcome"></div><div class="results"></div>`
     section.querySelector("button").addEventListener("click", () => run(step.id))
     document.getElementById("steps").append(section)
     return [step.id, section]
 }))
 
+const runAllButton = document.getElementById("run-all")
+runAllButton.addEventListener("click", async () => {
+    runningAll = true
+    render()
+    await runAll(sequence, (id) => run(id))
+    runningAll = false
+    render()
+})
+
+const overviewTimes = (name, n) => {
+    const [forward, inverse] = ["forward", "inverse"].map((direction) => sequence.data(direction)?.[key(name, n)]?.median)
+    return forward === undefined && inverse === undefined ? undefined : {forward, inverse}
+}
+
+const currentOverview = () => overviewRows({facts, factsMissing, times: overviewTimes, options: sequence.data("module")?.options ?? [], sizes: SIZES})
+
+const renderOverview = () => {
+    document.getElementById("overview").innerHTML = overviewHtml(currentOverview())
+}
+
 const render = () => {
+    renderOverview()
+    runAllButton.disabled = runningAll || !sequence.canRun(STEPS[0].id)
+    runAllButton.textContent = runningAll ? "Running all…" : "Run all"
     for (const {id} of STEPS) {
         const section = sections.get(id)
         const state = sequence.state(id)
         section.classList.toggle("locked", state === "locked")
         const button = section.querySelector("button")
-        button.disabled = !sequence.canRun(id)
+        button.disabled = runningAll || !sequence.canRun(id)
         button.textContent = ["ok", "warn", "fail"].includes(state) ? "Run again" : "Run"
         const outcome = section.querySelector(".outcome")
         outcome.className = `outcome ${state}`
@@ -79,7 +112,7 @@ const render = () => {
         if (state === "locked" || state === "ready") {
             section.querySelector(".results").innerHTML = ""
         }
-        section.querySelectorAll(".results button").forEach((rerun) => { rerun.disabled = !sequence.canRun(id) })
+        section.querySelectorAll(".results button").forEach((rerun) => { rerun.disabled = runningAll || !sequence.canRun(id) })
     }
 }
 
@@ -111,12 +144,29 @@ const renderThroughput = (direction) => {
         .filter(({points}) => points.some(([, value]) => value !== undefined))
     const unsure = results.filter((result) => result[direction] !== undefined && result[direction].ci > CI_TARGET)
     const area = sections.get(direction).querySelector(".results")
-    area.innerHTML = markdownToHtml(sizeTable(title, SIZES, options(), (result) => cell(result?.[direction]), results))
+    area.innerHTML = hint(HINTS.throughputTable) + markdownToHtml(sizeTable(title, SIZES, options(), (result) => cell(result?.[direction]), results))
         + (unsure.length === 0 ? "" : `<p>Rerun single points: ${unsure.map((result) =>
             `${escape(result.name)} N = ${result.n}<button class="small" data-name="${escape(result.name)}" data-n="${result.n}">rerun</button>`).join(" · ")}</p>`)
-        + lineChart({series, xLabel: "N", yLabel: "µs per call", logX: true, logY: true})
+        + hint(HINTS.throughputChart) + lineChart({series, xLabel: "N", yLabel: "µs per call", logX: true, logY: true})
+        + libraryRule(direction)
     area.querySelectorAll("button[data-name]").forEach((button) => button.addEventListener("click", () =>
         rerunPoint(direction, options().find((option) => option.name === button.dataset.name), Number(button.dataset.n))))
+}
+
+const libraryRule = (direction) => {
+    const median = (name, n) => sequence.data(direction)[key(name, n)]?.median
+    const ratios = (name) => SIZES.map((n) => [n, median(LIBRARY, n) === undefined || median(name, n) === undefined ? undefined
+        : median(LIBRARY, n) / median(name, n)])
+    const series = options().filter((option) => option.name !== LIBRARY)
+        .map((option) => ({name: option.name, slot: slot(option), points: ratios(option.name)}))
+        .filter(({points}) => points.some(([, ratio]) => ratio !== undefined))
+    if (series.length === 0) {
+        return ""
+    }
+    return `<h4>${LIBRARY} against every option: the 20 % rule</h4>` + hint(HINTS.libraryChart)
+        + `<p>The decision overview at the top reads off ${LIBRARY} ÷ ${KERNEL}.</p>`
+        + lineChart({series, xLabel: "N", yLabel: `${LIBRARY} time ÷ option time`, logX: true, logY: false,
+            reference: {value: LIBRARY_LIMIT, label: "20 % limit: library preferred below"}})
 }
 
 const throughputOutcome = (direction, data, previous = []) => ({...stepOutcome(Object.values(data), {wasHidden, previous}), data})
@@ -154,7 +204,7 @@ const steps = {
         const evaluated = evaluateEnvironment(checks)
         const reasons = [...evaluated.reasons, ...host === undefined ? ["the /environment endpoint is missing: serve the page with `node web/serve.mjs`"] : []]
         document.getElementById("environment").textContent = headerLine({browser, host, tickNs: checks.tickNs})
-        sections.get("environment").querySelector(".results").innerHTML = markdownToHtml(["| Check | Value |", "|---|---|",
+        sections.get("environment").querySelector(".results").innerHTML = hint(HINTS.environmentTable) + markdownToHtml(["| Check | Value |", "|---|---|",
             `| cross-origin isolated | ${checks.isolated ? "yes" : "no"} |`, `| timer tick | ${(checks.tickNs / 1000).toFixed(1)} µs |`,
             `| SIMD128 | ${checks.simd ? "yes" : "no"} |`, `| batch length | ${(batchNsFor(checks.tickNs) / 1e6).toFixed(0)} ms |`])
         return {status: reasons.length === 0 ? "ok" : "fail", reasons, data: {...checks, host, batchNs: batchNsFor(checks.tickNs)}}
@@ -164,7 +214,7 @@ const steps = {
         const stale = (await fetchHost())?.moduleStale === true
         const {host, tickNs} = sequence.data("environment")
         document.getElementById("environment").textContent = headerLine({browser, host, tickNs, sha256: loaded.sha256})
-        sections.get("module").querySelector(".results").innerHTML = markdownToHtml(["| Option | Registry slot | Complex |", "|---|---|---|",
+        sections.get("module").querySelector(".results").innerHTML = hint(HINTS.moduleTable) + markdownToHtml(["| Option | Registry slot | Complex |", "|---|---|---|",
             ...loaded.options.map((option) => `| ${option.name} | ${option.option} | ${option.complex ? "yes" : "no"} |`)])
             + `<p>${loaded.bytes} bytes, sha256 ${escape(loaded.sha256)}</p>`
         return {status: stale ? "warn" : "ok", data: loaded,
@@ -186,7 +236,7 @@ const steps = {
             .flatMap(({id, title}) => sequence.reasons(id).map((reason) => `${title}: ${reason}`))
         const markdown = buildReport({environment: environmentRows(), options: options(), sizes: SIZES, remarks,
             results: SIZES.flatMap((n) => options().map((option) => ({name: option.name, n, forward: sequence.data("forward")[key(option.name, n)],
-                inverse: sequence.data("inverse")[key(option.name, n)]}))), steps: stepEntries()})
+                inverse: sequence.data("inverse")[key(option.name, n)]}))), steps: stepEntries(), overview: overviewMarkdown(currentOverview())})
         const link = document.createElement("a")
         link.href = URL.createObjectURL(new Blob([markdown], {type: "text/markdown"}))
         link.download = reportFileName(browser)
@@ -205,21 +255,21 @@ const renderResults = {
         const largest = (entry) => entry.steps.reduce((top, step) => step.median > top.median ? step : top)
         const flagged = entries.filter((entry) => largest(entry).ci > CI_TARGET)
         sections.get("steps").querySelector(".results").innerHTML = entries.length === 0 ? "<p>No option splits its transform into steps.</p>"
-            : markdownToHtml(stepTable(entries.map((entry) => ({...entry, steps: entry.steps.map((step) => step.median)}))))
+            : hint(HINTS.stepsTable) + markdownToHtml(stepTable(entries.map((entry) => ({...entry, steps: entry.steps.map((step) => step.median)}))))
             + (flagged.length === 0 ? "" : `<p>Largest step with a CI above ${CI_TARGET * 100} % (run the step again): ${flagged.map((entry) =>
                 `${escape(entry.name)} N = ${entry.n} (±${(largest(entry).ci * 100).toFixed(1)} %)`).join(" · ")}</p>`)
     },
     budget: () => {
         const loads = (consumer) => options().map((option) => ({name: option.name, slot: slot(option), load: consumerLoad(consumer, option, times)}))
         const stretch = CONSUMERS.find((consumer) => consumer.split)
-        sections.get("budget").querySelector(".results").innerHTML = barChart({unit: " %", yLabel: "% of the render quantum, average",
+        sections.get("budget").querySelector(".results").innerHTML = hint(HINTS.budgetChart) + barChart({unit: " %", yLabel: "% of the render quantum, average",
             groups: CONSUMERS.map((consumer) => ({name: consumer.name, bars: loads(consumer).map(({name, slot: barSlot, load}) =>
                 ({name, slot: barSlot, value: load === undefined ? undefined : load.average * 100}))}))})
             + `<h4>${escape(stretch.name)}: by number of regions</h4>`
             + barChart({unit: " %", yLabel: "% of the render quantum, average", groups: REGION_COUNTS.map((count) => ({
                 name: `${count} region${count === 1 ? "" : "s"}`, bars: loads(stretch).map(({name, slot: barSlot, load}) =>
                     ({name, slot: barSlot, value: load === undefined ? undefined : load.average * 100 * count}))}))})
-            + markdownToHtml(budgetReport(options(), times))
+            + hint(HINTS.budgetTable) + markdownToHtml(budgetReport(options(), times))
     }
 }
 
@@ -234,4 +284,13 @@ const run = async (id, work = steps[id]) => {
     render()
 }
 
+const loadFacts = async () => {
+    const response = await fetch("/web/facts.json").catch(() => undefined)
+    facts = response?.ok ? await response.json().catch(() => undefined) : undefined
+    factsMissing = facts === undefined
+    document.getElementById("facts-stale").classList.toggle("hidden", (await fetchHost().catch(() => undefined))?.factsStale !== true || factsMissing)
+    render()
+}
+
 render()
+loadFacts()

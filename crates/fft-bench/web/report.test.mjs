@@ -49,3 +49,17 @@ test("remarks of warned steps are carried into the report, right after the envir
     assert.match(withRemarks, /- ⚠ Forward throughput: tab was hidden/)
     assert.doesNotMatch(report, /## Remarks/)
 })
+
+test("the report starts with the decision overview and the glossary", () => {
+    const withOverview = buildReport({environment: [["browser", "Safari 26.1"]], options, sizes, results, steps,
+        overview: ["| Criterion | realfft |", "|---|---|", "| Speed-up | 5.9× |"]})
+    const overview = withOverview.indexOf("## Decision overview")
+    assert.ok(overview > withOverview.indexOf("## Environment"))
+    assert.ok(overview < withOverview.indexOf("## Wasm timings"))
+    assert.match(withOverview, /\| Speed-up \| 5\.9× \|/)
+    assert.match(withOverview, /- \*\*render quantum\*\*:/)
+})
+
+test("without an overview the report has no empty overview section", () => {
+    assert.doesNotMatch(report, /## Decision overview/)
+})

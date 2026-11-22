@@ -15,11 +15,11 @@ impl ComplexFft for Fft {
         Fft::size(self)
     }
 
-    fn forward(&self, re: &mut [f32], im: &mut [f32]) {
+    fn forward(&mut self, re: &mut [f32], im: &mut [f32]) {
         Fft::forward(self, re, im)
     }
 
-    fn inverse(&self, re: &mut [f32], im: &mut [f32]) {
+    fn inverse(&mut self, re: &mut [f32], im: &mut [f32]) {
         Fft::inverse(self, re, im)
     }
 
@@ -28,7 +28,7 @@ impl ComplexFft for Fft {
         1 + self.stages()
     }
 
-    fn step(&self, re: &mut [f32], im: &mut [f32], step: usize) {
+    fn step(&mut self, re: &mut [f32], im: &mut [f32], step: usize) {
         if step == 0 {
             self.bit_reverse(re, im);
         } else {

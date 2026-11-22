@@ -7,6 +7,10 @@ const BAR_RADIUS = 4
 const BAR_GAP = 2
 const GROUP_GAP = 24
 const LINEAR_TICKS = 4
+const LEGEND_SWATCH = 18
+const LEGEND_CHAR = 7
+const LEGEND_GAP = 20
+const LEGEND_ROW = 18
 
 const escape = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 const format = (value) => Number(value.toPrecision(3)).toString()
@@ -32,28 +36,50 @@ const ticks = (low, high, log, base) => {
     return Array.from({length: Math.ceil(high / niceStep) + 1}, (_, index) => index * niceStep)
 }
 
-const legend = (items) => items.length < 2 ? "" : items.map(({name, slot}, index) =>
-    `<g class="legend-item" transform="translate(${plotLeft + index * 110},12)">`
-    + `<rect width="12" height="12" rx="2" fill="var(--series-${slot})"/>`
-    + `<text x="18" y="10" fill="var(--text-secondary)" font-size="12">${escape(name)}</text></g>`).join("")
+// Items flow left to right and wrap into rows; `extra` is the height the rows beyond the first add above the plot.
+const legend = (items) => {
+    if (items.length < 2) {
+        return {svg: "", extra: 0}
+    }
+    let [left, row] = [plotLeft, 0]
+    const svg = items.map(({name, slot}) => {
+        const width = LEGEND_SWATCH + String(name).length * LEGEND_CHAR + LEGEND_GAP
+        if (left > plotLeft && left + width - LEGEND_GAP > plotRight) {
+            [left, row] = [plotLeft, row + 1]
+        }
+        const item = `<g class="legend-item" transform="translate(${left},${12 + row * LEGEND_ROW})">`
+            + `<rect width="12" height="12" rx="2" fill="var(--series-${slot})"/>`
+            + `<text x="18" y="10" fill="var(--text-secondary)" font-size="12">${escape(name)}</text></g>`
+        left += width
+        return item
+    }).join("")
+    return {svg, extra: row * LEGEND_ROW}
+}
 
-const frame = (content, yLabel, xLabel) =>
-    `<svg viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" font-family="inherit" xmlns="http://www.w3.org/2000/svg">${content}`
+const frame = ({svg, extra}, content, yLabel, xLabel) =>
+    `<svg viewBox="0 0 ${WIDTH} ${HEIGHT + extra}" role="img" font-family="inherit" xmlns="http://www.w3.org/2000/svg">${svg}`
+    + `<g transform="translate(0,${extra})">${content}`
     + `<text x="14" y="${(plotTop + plotBottom) / 2}" transform="rotate(-90 14 ${(plotTop + plotBottom) / 2})" text-anchor="middle" `
     + `fill="var(--text-muted)" font-size="11">${escape(yLabel)}</text>`
     + (xLabel === undefined ? "" : `<text x="${(plotLeft + plotRight) / 2}" y="${HEIGHT - 6}" text-anchor="middle" fill="var(--text-muted)" `
-        + `font-size="11">${escape(xLabel)}</text>`) + "</svg>"
+        + `font-size="11">${escape(xLabel)}</text>`) + "</g></svg>"
 
 const horizontalGrid = (values, y) => values.map((value) =>
     `<line class="grid" x1="${plotLeft}" x2="${plotRight}" y1="${y(value)}" y2="${y(value)}" stroke="var(--grid)" stroke-width="1"/>`
     + `<text x="${plotLeft - 6}" y="${y(value) + 4}" text-anchor="end" fill="var(--text-muted)" font-size="11">${format(value)}</text>`).join("")
 
-export const lineChart = ({series, xLabel, yLabel, logX, logY}) => {
+// A dashed horizontal line with its label at the right end, for a threshold such as the plan's 20 % rule.
+const referenceLine = (reference, y) => reference === undefined ? ""
+    : `<line class="reference" x1="${plotLeft}" x2="${plotRight}" y1="${y(reference.value)}" y2="${y(reference.value)}" `
+    + `stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="6 4"/>`
+    + `<text x="${plotRight}" y="${y(reference.value) - 6}" text-anchor="end" fill="var(--text-secondary)" font-size="11">${escape(reference.label)}</text>`
+
+export const lineChart = ({series, xLabel, yLabel, logX, logY, reference}) => {
     const defined = series.flatMap(({points}) => points.filter(([, value]) => value !== undefined))
     const xs = defined.map(([n]) => n)
     const ys = defined.map(([, value]) => value)
     const [xLow, xHigh] = [Math.min(...xs), Math.max(...xs)]
-    const yTicks = ticks(logY ? Math.min(...ys) : 0, Math.max(...ys), logY, 10)
+    const yTicks = ticks(logY ? Math.min(...ys) : 0, Math.max(...ys, reference?.value ?? -Infinity), logY, 10)
     const x = scale(xLow, xHigh, logX, plotLeft, plotRight)
     const y = scale(yTicks[0], yTicks.at(-1), logY, plotBottom, plotTop)
     const xAxis = ticks(xLow, xHigh, logX, 2).filter((value) => value >= xLow && value <= xHigh).map((value) =>
@@ -67,7 +93,7 @@ export const lineChart = ({series, xLabel, yLabel, logX, logY}) => {
             + `stroke="var(--surface)" stroke-width="2"><title>${escape(name)}, N = ${n}: ${format(value)} ${escape(yLabel)}</title></circle>`).join("")
         return `<path class="line" d="${path}" fill="none" stroke="var(--series-${slot})" stroke-width="2"/>${marks}`
     }).join("")
-    return frame(legend(series) + horizontalGrid(yTicks, y) + xAxis + lines, yLabel, xLabel)
+    return frame(legend(series), horizontalGrid(yTicks, y) + xAxis + referenceLine(reference, y) + lines, yLabel, xLabel)
 }
 
 // Bars are rounded at the data end only and stand square on the baseline.
@@ -95,5 +121,5 @@ export const barChart = ({groups, yLabel, unit}) => {
         return marks + `<text x="${groupLeft + groupWidth / 2}" y="${plotBottom + 16}" text-anchor="middle" fill="var(--text-secondary)" `
             + `font-size="12">${escape(name)}</text>`
     }).join("")
-    return frame(legend(legendItems) + horizontalGrid(yTicks, y) + content, yLabel, undefined)
+    return frame(legend(legendItems), horizontalGrid(yTicks, y) + content, yLabel, undefined)
 }

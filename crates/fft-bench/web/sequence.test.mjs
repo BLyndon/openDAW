@@ -1,7 +1,7 @@
 // Checks of the fixed step order of the browser page: node --test web/sequence.test.mjs
 import {test} from "node:test"
 import assert from "node:assert/strict"
-import {createSequence, runStep, STEPS} from "./sequence.mjs"
+import {createSequence, runAll, runStep, STEPS} from "./sequence.mjs"
 
 const OK = {status: "ok", reasons: [], data: {}}
 const states = (sequence) => STEPS.map(({id}) => sequence.state(id))
@@ -12,7 +12,8 @@ const complete = (sequence, ids) => ids.forEach((id) => {
 
 test("the steps run in the spec's order", () => {
     assert.deepEqual(STEPS.map(({id}) => id), ["environment", "module", "forward", "inverse", "steps", "budget", "report"])
-    assert.ok(STEPS.every(({title, purpose, expected}) => [title, purpose, expected].every((text) => text.length > 0)))
+    assert.ok(STEPS.every(({title, what, why, how, expected}) => [title, what, why, how, expected].every((text) => text?.length > 0)))
+    assert.ok(STEPS.every((step) => step.purpose === undefined), "purpose is replaced by what / why / how")
 })
 
 test("initially only the environment step is ready", () => {
@@ -73,4 +74,33 @@ test("runStep: a successful step finishes with its outcome", async () => {
     const sequence = createSequence()
     await runStep(sequence, "environment", async () => OK)
     assert.equal(sequence.state("module"), "ready")
+})
+
+test("runAll runs every step in order", async () => {
+    const sequence = createSequence()
+    const ran = []
+    const failed = await runAll(sequence, (id) => runStep(sequence, id, () => (ran.push(id), OK)))
+    assert.equal(failed, undefined)
+    assert.deepEqual(ran, STEPS.map(({id}) => id))
+    assert.ok(states(sequence).every((state) => state === "ok"))
+})
+
+test("runAll stops at the first failing step and leaves the later ones locked", async () => {
+    const sequence = createSequence()
+    const ran = []
+    const failed = await runAll(sequence, (id) => runStep(sequence, id, () => {
+        ran.push(id)
+        return id === "forward" ? {status: "fail", reasons: ["worker died"], data: {}} : OK
+    }))
+    assert.equal(failed, "forward")
+    assert.deepEqual(ran, ["environment", "module", "forward"])
+    assert.equal(sequence.state("inverse"), "locked")
+})
+
+test("runAll starts over from the first step after a complete run", async () => {
+    const sequence = createSequence()
+    await runAll(sequence, (id) => runStep(sequence, id, () => OK))
+    const ran = []
+    await runAll(sequence, (id) => runStep(sequence, id, () => (ran.push(id), OK)))
+    assert.equal(ran.length, STEPS.length)
 })
