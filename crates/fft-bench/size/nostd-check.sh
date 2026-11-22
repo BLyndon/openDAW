@@ -5,7 +5,7 @@
 set -u
 cd "$(dirname "$0")"
 TARGET=wasm32-unknown-unknown
-STUBS="empty analyser rfft signalsmith simd realfft"
+STUBS="empty analyser rfft signalsmith simd simd-o1o4 realfft"
 
 json=$([ "${1:-}" = "--json" ] && echo 1 || echo 0)
 separator=""

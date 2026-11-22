@@ -1,4 +1,4 @@
-// The browser page's fixed step order; a new result invalidates every later step.
+// The browser pages' fixed step order (`STEPS` for the decision page); a new result invalidates every later step.
 export const STEPS = [
     {id: "environment", title: "Environment",
         what: "Checks that the page is cross-origin isolated, that the timer ticks finely enough, and that SIMD128 is available.",
@@ -37,17 +37,17 @@ export const STEPS = [
         how: "Builds the Markdown in the page and downloads it.",
         expected: "A file browser-<browser>-<major version>.md is downloaded."}]
 
-export const createSequence = () => {
-    const entries = new Map(STEPS.map(({id}, index) => [id, {state: index === 0 ? "ready" : "locked", data: undefined}]))
-    const index = (id) => STEPS.findIndex((step) => step.id === id)
+export const createSequence = (steps = STEPS) => {
+    const entries = new Map(steps.map(({id}, index) => [id, {state: index === 0 ? "ready" : "locked", data: undefined}]))
+    const index = (id) => steps.findIndex((step) => step.id === id)
     const running = () => [...entries.values()].some((entry) => entry.state === "running")
-    const resetAfter = (id, nextReady) => STEPS.slice(index(id) + 1).forEach((step, offset) => {
+    const resetAfter = (id, nextReady) => steps.slice(index(id) + 1).forEach((step, offset) => {
         const entry = entries.get(step.id)
         entry.state = offset === 0 && nextReady ? "ready" : "locked"
         entry.data = undefined
     })
     const passed = (id) => ["ok", "warn"].includes(entries.get(id).state)
-    const canRun = (id) => !running() && entries.get(id).state !== "locked" && (index(id) === 0 || passed(STEPS[index(id) - 1].id))
+    const canRun = (id) => !running() && entries.get(id).state !== "locked" && (index(id) === 0 || passed(steps[index(id) - 1].id))
     return {
         state: (id) => entries.get(id).state,
         data: (id) => entries.get(id).data,
@@ -80,8 +80,8 @@ export const runStep = async (sequence, id, work) => {
 }
 
 // Runs every step in order from the first and stops at the first one that fails; returns that step's id.
-export const runAll = async (sequence, run) => {
-    for (const {id} of STEPS) {
+export const runAll = async (sequence, run, steps = STEPS) => {
+    for (const {id} of steps) {
         await run(id)
         if (sequence.state(id) === "fail") {
             return id

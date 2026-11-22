@@ -1,5 +1,6 @@
 pub mod analyser;
 pub mod complex;
+pub mod outlook;
 pub mod realfft;
 pub mod reverted;
 pub mod rfft;
@@ -29,12 +30,13 @@ fn create<T: RealFft + 'static>(n: usize) -> Box<dyn RealFft> {
 }
 
 /// Every option the harness measures.
-pub const ALL: [Entry; 7] = [
+pub const ALL: [Entry; 8] = [
     Entry { name: "analyser", role: Role::Baseline, complex: true, create: create::<analyser::AnalyserFft> },
     Entry { name: "rfft", role: Role::Baseline, complex: false, create: create::<rfft::RfftOption> },
     Entry { name: "signalsmith", role: Role::Baseline, complex: true, create: create::<signalsmith::SignalsmithFft> },
     Entry { name: "reverted", role: Role::Baseline, complex: true, create: create::<reverted::RevertedFft> },
     Entry { name: "realfft", role: Role::Candidate, complex: false, create: create::<realfft::RealFftOption> },
     Entry { name: "simd", role: Role::Candidate, complex: false, create: create::<simd::SimdRealFft> },
-    Entry { name: "simd-complex", role: Role::Candidate, complex: true, create: create::<simd::SimdComplexFft> }
+    Entry { name: "simd-complex", role: Role::Candidate, complex: true, create: create::<simd::SimdComplexFft> },
+    Entry { name: "simd-o1o4", role: Role::Candidate, complex: false, create: create::<outlook::Selection> }
 ];

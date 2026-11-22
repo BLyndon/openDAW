@@ -154,6 +154,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "size-simd-o1o4"
+version = "0.0.0"
+dependencies = [
+ "libm",
+ "support",
+]
+
+[[package]]
 name = "strength_reduce"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

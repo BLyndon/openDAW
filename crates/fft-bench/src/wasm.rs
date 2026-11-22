@@ -3,6 +3,7 @@
 //! option at one size at a time and does all timing itself; these functions only do the work.
 #![cfg(target_arch = "wasm32")]
 
+use crate::options::outlook::STAGES;
 use crate::options::ALL;
 use crate::signals::Signal;
 use crate::{bins, RealFft};
@@ -52,13 +53,88 @@ pub extern "C" fn option_is_complex(option: u32) -> u32 {
 /// Allocates; never call it inside a timed region.
 #[no_mangle]
 pub extern "C" fn setup(option: u32, n: u32) {
-    let n = n as usize;
-    let mut fft = (ALL[option as usize].create)(n);
-    let input = Signal::WhiteNoise.generate(n);
+    setup_signal(option, n, Signal::ALL.iter().position(|signal| *signal == Signal::WhiteNoise).unwrap() as u32);
+}
+
+#[no_mangle]
+pub extern "C" fn signal_count() -> u32 {
+    Signal::ALL.len() as u32
+}
+
+/// As `setup`, with `Signal::ALL[signal]` as input. `bits.mjs` reads the results through the pointers below.
+#[no_mangle]
+pub extern "C" fn setup_signal(option: u32, n: u32, signal: u32) {
+    install((ALL[option as usize].create)(n as usize), signal);
+}
+
+#[no_mangle]
+pub extern "C" fn stage_count() -> u32 {
+    STAGES.len() as u32
+}
+
+/// Address of the stage's name in linear memory; read `stage_name_len` bytes of UTF-8 from it.
+#[no_mangle]
+pub extern "C" fn stage_name_ptr(stage: u32) -> *const u8 {
+    STAGES[stage as usize].name.as_ptr()
+}
+
+#[no_mangle]
+pub extern "C" fn stage_name_len(stage: u32) -> u32 {
+    STAGES[stage as usize].name.len() as u32
+}
+
+/// Transforms per call of the stage; the time per transform is the time per call divided by this.
+#[no_mangle]
+pub extern "C" fn stage_batch(stage: u32) -> u32 {
+    STAGES[stage as usize].batch as u32
+}
+
+/// As `setup`, for `outlook::STAGES[stage]`; the timing exports below then run that stage.
+#[no_mangle]
+pub extern "C" fn setup_stage(stage: u32, n: u32) {
+    setup_stage_signal(stage, n, Signal::ALL.iter().position(|signal| *signal == Signal::WhiteNoise).unwrap() as u32);
+}
+
+#[no_mangle]
+pub extern "C" fn setup_stage_signal(stage: u32, n: u32, signal: u32) {
+    install((STAGES[stage as usize].create)(n as usize), signal);
+}
+
+fn install(mut fft: Box<dyn RealFft>, signal: u32) {
+    let n = fft.size();
+    let input = Signal::ALL[signal as usize].generate(n);
     let (mut re, mut im, mut output) = (vec![0.0; bins(n)], vec![0.0; bins(n)], vec![0.0; n]);
     fft.forward(&input, &mut re, &mut im);
     let has_inverse = fft.inverse(&re, &im, &mut output);
     BENCH.with(|bench| *bench.borrow_mut() = Some(Bench { fft, input, re, im, output, has_inverse }));
+}
+
+#[no_mangle]
+pub extern "C" fn input_ptr() -> *const f32 {
+    let mut result = core::ptr::null();
+    with_bench(|bench| result = bench.input.as_ptr());
+    result
+}
+
+#[no_mangle]
+pub extern "C" fn re_ptr() -> *const f32 {
+    let mut result = core::ptr::null();
+    with_bench(|bench| result = bench.re.as_ptr());
+    result
+}
+
+#[no_mangle]
+pub extern "C" fn im_ptr() -> *const f32 {
+    let mut result = core::ptr::null();
+    with_bench(|bench| result = bench.im.as_ptr());
+    result
+}
+
+#[no_mangle]
+pub extern "C" fn output_ptr() -> *const f32 {
+    let mut result = core::ptr::null();
+    with_bench(|bench| result = bench.output.as_ptr());
+    result
 }
 
 #[no_mangle]

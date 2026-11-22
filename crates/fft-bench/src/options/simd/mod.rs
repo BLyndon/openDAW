@@ -3,7 +3,7 @@
 //! scalar `[f32; 4]` fallback, a bit-exact oracle for the wasm build, not a speed reference.
 
 pub mod kernel;
-mod v4;
+pub(crate) mod v4;
 
 use super::complex::{ComplexAsReal, ComplexFft};
 use crate::RealFft;

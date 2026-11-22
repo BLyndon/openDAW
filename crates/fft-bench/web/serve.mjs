@@ -16,6 +16,7 @@ const routes = (root, modulePath) => {
     const pageFiles = fs.readdirSync(web).filter((name) => !name.endsWith(".test.mjs") && name !== "serve.mjs")
     return new Map([
         ["/", path.join(web, "index.html")],
+        ["/stages", path.join(web, "stages.html")],
         ["/web/facts.json", path.join(web, "facts.json")],
         ["/fft_bench.wasm", modulePath],
         ...SHARED_MODULES.map((name) => [`/${name}`, path.join(root, name)]),

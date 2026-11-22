@@ -27,6 +27,16 @@ mod imp {
             v128_store(slice.as_mut_ptr().add(index) as *mut v128, self.0)
         }
 
+        /// `slice[index]` in all four lanes, one `v128.load32_splat`.
+        ///
+        /// # Safety
+        /// `index < slice.len()`.
+        #[inline(always)]
+        pub unsafe fn load_splat(slice: &[f32], index: usize) -> Self {
+            debug_assert!(index < slice.len());
+            V4(v128_load32_splat(slice.as_ptr().add(index) as *const u32))
+        }
+
         #[inline(always)]
         pub fn splat(value: f32) -> Self {
             V4(f32x4_splat(value))
@@ -75,6 +85,14 @@ mod imp {
         pub unsafe fn store(self, slice: &mut [f32], index: usize) {
             debug_assert!(index + 4 <= slice.len());
             slice.as_mut_ptr().add(index).cast::<[f32; 4]>().write_unaligned(self.0)
+        }
+
+        /// # Safety
+        /// `index < slice.len()`.
+        #[inline(always)]
+        pub unsafe fn load_splat(slice: &[f32], index: usize) -> Self {
+            debug_assert!(index < slice.len());
+            V4([*slice.as_ptr().add(index); 4])
         }
 
         #[inline(always)]

@@ -1,0 +1,12 @@
+[package]
+name = "size-simd-o1o4"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+support = {path = "../support"}
+libm = "0.2"

@@ -5,8 +5,10 @@ import {microseconds} from "../markdown.mjs"
 
 export const LIBRARY = "realfft"
 export const KERNEL = "simd"
+// simd with the outlook items O1 and O4 (docs/simd-outlook.md), shown beside it.
+export const SELECTION = "simd-o1o4"
 export const REFERENCE = "rfft"
-export const COLUMNS = [LIBRARY, KERNEL, REFERENCE]
+export const COLUMNS = [LIBRARY, KERNEL, SELECTION, REFERENCE]
 // future-plans/simd-fft.md: prefer the library if it is within ~20 % of the hand-written kernel.
 export const LIBRARY_LIMIT = 1.2
 export const SPEED_TARGET = 4
@@ -85,7 +87,7 @@ const timingRows = ({times, options, sizes}) => {
         {criterion: `Speed-up vs. ${REFERENCE}, N = ${SPEED_SIZES[0]}–${SPEED_SIZES.at(-1)}`,
             threshold: {text: `≥ ${SPEED_TARGET}×`, kind: "proposal"}, cells: allColumns(speedUp), source: "step ③"},
         {criterion: `20 % rule: ${LIBRARY} ÷ ${KERNEL}`, threshold: {text: `≤ ${LIBRARY_LIMIT} → prefer the library, if it passes all gates`, kind: "plan"},
-            cells: {[LIBRARY]: libraryRule(), [KERNEL]: cell(""), [REFERENCE]: cell("")}, source: "steps ③ and ④"},
+            cells: {[LIBRARY]: libraryRule(), [KERNEL]: cell(""), [SELECTION]: cell(""), [REFERENCE]: cell("")}, source: "steps ③ and ④"},
         {criterion: `Time-stretch budget, ${STRETCH_VOICES} regions`, threshold: {text: "≤ P % of a render quantum", kind: "open"},
             cells: allColumns(budget), source: "step ⑥ model, steps ③ and ④ times"}
     ]
@@ -129,7 +131,7 @@ export const overviewRows = ({facts, factsMissing, times, options, sizes}) =>
     [...timingRows({times, options, sizes}), ...factsRows({facts, factsMissing})]
 
 const thresholdText = ({text, kind}) => kind === "none" ? text : `${text} (${kind})`
-const header = ["Criterion", LIBRARY, KERNEL, `${REFERENCE} (today)`, "Threshold", "Source"]
+const header = ["Criterion", LIBRARY, KERNEL, SELECTION, `${REFERENCE} (today)`, "Threshold", "Source"]
 
 export const overviewHtml = (rows) => `<table class="overview"><tr>${header.map((title) => `<th>${escape(title)}</th>`).join("")}</tr>`
     + rows.map((row) => `<tr><td>${escape(row.criterion)}</td>`

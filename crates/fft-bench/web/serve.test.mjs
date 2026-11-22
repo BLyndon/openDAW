@@ -12,6 +12,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), "fft-bench-serve-"))
 fs.mkdirSync(path.join(root, "web"))
 fs.mkdirSync(path.join(root, "src"))
 fs.writeFileSync(path.join(root, "web", "index.html"), "<!doctype html>")
+fs.writeFileSync(path.join(root, "web", "stages.html"), "<!doctype html><title>stages</title>")
 fs.writeFileSync(path.join(root, "run.mjs"), "secret")
 fs.writeFileSync(path.join(root, "src", "lib.rs"), "")
 const modulePath = path.join(root, "fft_bench.wasm")
@@ -46,6 +47,13 @@ test("index and module are served with their content types", async () => {
     assert.equal((await get("/fft_bench.wasm")).headers["content-type"], "application/wasm")
 })
 
+test("the stages page is served at /stages", async () => {
+    const stages = await get("/stages")
+    assert.equal(stages.status, 200)
+    assert.match(stages.headers["content-type"], /^text\/html/)
+    assert.match(stages.body, /stages/)
+})
+
 test("paths outside the allowlist are not served", async () => {
     for (const requestPath of ["/../run.mjs", "/web/../run.mjs", "/run.mjs", "/web/%2e%2e/run.mjs"]) {
         assert.equal((await get(requestPath)).status, 404, requestPath)
@@ -77,9 +85,11 @@ test("a module older than a source file is stale", () => {
     assert.equal(moduleIsStale(path.join(root, "missing.wasm"), [path.join(root, "src")]), true)
 })
 
-test("the shipped page says how to serve it when its script cannot run", () => {
-    const page = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8")
-    assert.match(page, /<div id="steps">[^<]*node web\/serve\.mjs[^<]*<\/div>/)
+test("the shipped pages say how to serve them when their script cannot run", () => {
+    for (const name of ["index.html", "stages.html"]) {
+        const page = fs.readFileSync(new URL(`./${name}`, import.meta.url), "utf8")
+        assert.match(page, /<div id="steps">[^<]*node web\/serve\.mjs[^<]*<\/div>/, name)
+    }
 })
 
 test("query strings do not change the route", async () => {

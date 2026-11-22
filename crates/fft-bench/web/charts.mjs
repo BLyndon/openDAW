@@ -74,7 +74,8 @@ const referenceLine = (reference, y) => reference === undefined ? ""
     + `stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="6 4"/>`
     + `<text x="${plotRight}" y="${y(reference.value) - 6}" text-anchor="end" fill="var(--text-secondary)" font-size="11">${escape(reference.label)}</text>`
 
-export const lineChart = ({series, xLabel, yLabel, logX, logY, reference}) => {
+// `xTicks` ([value, label] pairs) replaces the numeric x-axis, for categories such as the outlook stages.
+export const lineChart = ({series, xLabel, yLabel, logX, logY, reference, xTicks}) => {
     const defined = series.flatMap(({points}) => points.filter(([, value]) => value !== undefined))
     const xs = defined.map(([n]) => n)
     const ys = defined.map(([, value]) => value)
@@ -82,15 +83,17 @@ export const lineChart = ({series, xLabel, yLabel, logX, logY, reference}) => {
     const yTicks = ticks(logY ? Math.min(...ys) : 0, Math.max(...ys, reference?.value ?? -Infinity), logY, 10)
     const x = scale(xLow, xHigh, logX, plotLeft, plotRight)
     const y = scale(yTicks[0], yTicks.at(-1), logY, plotBottom, plotTop)
-    const xAxis = ticks(xLow, xHigh, logX, 2).filter((value) => value >= xLow && value <= xHigh).map((value) =>
-        `<text x="${x(value)}" y="${plotBottom + 16}" text-anchor="middle" fill="var(--text-muted)" font-size="11">${value}</text>`).join("")
+    const xTitle = (value) => xTicks?.find(([tick]) => tick === value)?.[1] ?? `N = ${value}`
+    const xAxis = (xTicks ?? ticks(xLow, xHigh, logX, 2).filter((value) => value >= xLow && value <= xHigh).map((value) => [value, value]))
+        .map(([value, label]) => `<text x="${x(value)}" y="${plotBottom + 16}" text-anchor="middle" fill="var(--text-muted)" font-size="11">`
+            + `${escape(label)}</text>`).join("")
     const lines = series.map(({name, slot, points}) => {
         // A gap in the data starts a new segment instead of bridging the missing point.
         const path = points.map(([n, value], index) => value === undefined ? ""
             : `${index === 0 || points[index - 1][1] === undefined ? "M" : "L"}${x(n).toFixed(1)},${y(value).toFixed(1)}`).join("")
         const marks = points.filter(([, value]) => value !== undefined).map(([n, value]) =>
             `<circle class="point" cx="${x(n).toFixed(1)}" cy="${y(value).toFixed(1)}" r="${POINT_RADIUS}" fill="var(--series-${slot})" `
-            + `stroke="var(--surface)" stroke-width="2"><title>${escape(name)}, N = ${n}: ${format(value)} ${escape(yLabel)}</title></circle>`).join("")
+            + `stroke="var(--surface)" stroke-width="2"><title>${escape(name)}, ${escape(xTitle(n))}: ${format(value)} ${escape(yLabel)}</title></circle>`).join("")
         return `<path class="line" d="${path}" fill="none" stroke="var(--series-${slot})" stroke-width="2"/>${marks}`
     }).join("")
     return frame(legend(series), horizontalGrid(yTicks, y) + xAxis + referenceLine(reference, y) + lines, yLabel, xLabel)

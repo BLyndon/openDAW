@@ -31,6 +31,14 @@ test("speed-up row passes simd at ≥ 4× and labels the threshold a proposal", 
     assert.equal(row.threshold.kind, "proposal")
 })
 
+test("simd-o1o4 has its own column, filled from its own times", () => {
+    const rows = overviewRows({...INPUT, times: timesFrom({...NODE, "simd-o1o4": [780, 4900]}),
+        options: [...OPTIONS, {name: "simd-o1o4", option: OPTIONS.length, complex: false}]})
+    assert.match(overviewMarkdown(rows)[0], /\| simd \| simd-o1o4 \| rfft \(today\) \|/)
+    assert.match(rowFor(rows, "Forward time").cells["simd-o1o4"].text, /^0\.78 \/ 4\.90 µs$/)
+    assert.equal(rowFor(rows, "Speed-up").cells["simd-o1o4"].status, "pass")
+})
+
 test("20 % rule: a ratio of exactly 1.2 counts as within", () => {
     assert.equal(LIBRARY_LIMIT, 1.2)
     const row = rowFor(overviewRows({...INPUT, times: timesWithRatio(1.2)}), "20 %")

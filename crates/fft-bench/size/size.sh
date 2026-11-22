@@ -9,7 +9,7 @@ TARGET=wasm32-unknown-unknown
 OUT="target/$TARGET/release"
 FEATURES="--enable-bulk-memory --enable-mutable-globals --enable-simd --enable-sign-ext --enable-nontrapping-float-to-int --enable-multivalue --enable-reference-types"
 # stub:baseline. realfft is measured as a std module, since it cannot link no_std (see nostd-check.sh).
-STUBS="empty:empty analyser:empty rfft:empty signalsmith:empty simd:empty empty-std:empty-std realfft-std:empty-std"
+STUBS="empty:empty analyser:empty rfft:empty signalsmith:empty simd:empty simd-o1o4:empty empty-std:empty-std realfft-std:empty-std"
 
 command -v wasm-opt >/dev/null || { echo "wasm-opt not found (brew install binaryen)" >&2; exit 1; }
 

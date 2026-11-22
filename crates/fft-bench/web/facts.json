@@ -1,6 +1,6 @@
 {
   "generated": {
-    "git": "07195a22a-dirty",
+    "git": "60de57a9d-dirty",
     "date": "2026-11-22",
     "rustc": "rustc 1.93.0 (254b59607 2026-01-19)"
   },
@@ -171,6 +171,32 @@
         }
       },
       "allocations": 0,
+      "licence": "AGPL-3.0 (project)"
+    },
+    "simd-o1o4": {
+      "accuracy": {
+        "rms": {
+          "worst": 1.441578786926461e-7,
+          "gate": 2.384185791015625e-7,
+          "pass": true
+        },
+        "roundTrip": {
+          "worst": 8.940696716308594e-8,
+          "limit": 0.00001,
+          "pass": true
+        },
+        "contract": {
+          "worst": 1.8125283773974085e-7,
+          "limit": 0.00001,
+          "pass": true
+        }
+      },
+      "allocations": 0,
+      "size": {
+        "gzipAdded": 11198,
+        "crates": 3
+      },
+      "noStd": true,
       "licence": "AGPL-3.0 (project)"
     }
   }

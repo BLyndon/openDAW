@@ -9,54 +9,54 @@ use core::f64::consts::PI;
 
 /// Four consecutive complex values, split.
 #[derive(Clone, Copy)]
-struct C4 {
-    re: V4,
-    im: V4
+pub(crate) struct C4 {
+    pub(crate) re: V4,
+    pub(crate) im: V4
 }
 
 impl C4 {
     #[inline(always)]
-    fn add(self, other: Self) -> Self {
+    pub(crate) fn add(self, other: Self) -> Self {
         C4 { re: self.re.add(other.re), im: self.im.add(other.im) }
     }
 
     #[inline(always)]
-    fn sub(self, other: Self) -> Self {
+    pub(crate) fn sub(self, other: Self) -> Self {
         C4 { re: self.re.sub(other.re), im: self.im.sub(other.im) }
     }
 
     /// (a + ib)(c + id) = (ac − bd) + i(ad + bc)
     #[inline(always)]
-    fn mul(self, other: Self) -> Self {
+    pub(crate) fn mul(self, other: Self) -> Self {
         C4 { re: self.re.mul(other.re).sub(self.im.mul(other.im)), im: self.re.mul(other.im).add(self.im.mul(other.re)) }
     }
 
     #[inline(always)]
-    fn scale(self, factor: V4) -> Self {
+    pub(crate) fn scale(self, factor: V4) -> Self {
         C4 { re: self.re.mul(factor), im: self.im.mul(factor) }
     }
 
     #[inline(always)]
-    fn reverse(self) -> Self {
+    pub(crate) fn reverse(self) -> Self {
         C4 { re: self.re.reverse(), im: self.im.reverse() }
     }
 }
 
-trait Source {
+pub(crate) trait Source {
     /// # Safety
     /// Complex values `index..index + 4` exist.
     unsafe fn load(&self, index: usize) -> C4;
 }
 
-trait Sink {
+pub(crate) trait Sink {
     /// # Safety
     /// Complex values `index..index + 4` exist.
     unsafe fn store(&mut self, index: usize, value: C4);
 }
 
-struct Split<'a> {
-    re: &'a [f32],
-    im: &'a [f32]
+pub(crate) struct Split<'a> {
+    pub(crate) re: &'a [f32],
+    pub(crate) im: &'a [f32]
 }
 
 impl Source for Split<'_> {
@@ -95,7 +95,7 @@ impl Sink for ScaledMut<'_> {
 }
 
 /// Real samples read as complex values z[j] = x[2j] + i·x[2j + 1].
-struct Packed<'a>(&'a [f32]);
+pub(crate) struct Packed<'a>(pub(crate) &'a [f32]);
 
 impl Source for Packed<'_> {
     #[inline(always)]
@@ -106,7 +106,7 @@ impl Source for Packed<'_> {
 }
 
 /// The inverse's swapped view written back as real samples: x[2j] = im, x[2j + 1] = re.
-struct Unpacked<'a>(&'a mut [f32]);
+pub(crate) struct Unpacked<'a>(pub(crate) &'a mut [f32]);
 
 impl Sink for Unpacked<'_> {
     #[inline(always)]
@@ -119,7 +119,7 @@ impl Sink for Unpacked<'_> {
 
 /// The 4-point DFT of (a, b, c, d) with the forward sign, before twiddles.
 #[inline(always)]
-fn butterfly(a: C4, b: C4, c: C4, d: C4) -> [C4; 4] {
+pub(crate) fn butterfly(a: C4, b: C4, c: C4, d: C4) -> [C4; 4] {
     let (apc, amc, bpd, bmd) = (a.add(c), a.sub(c), b.add(d), b.sub(d));
     // amc − i·bmd and amc + i·bmd, with i·(x + iy) = −y + ix
     let y1 = C4 { re: amc.re.add(bmd.im), im: amc.im.sub(bmd.re) };
@@ -129,7 +129,7 @@ fn butterfly(a: C4, b: C4, c: C4, d: C4) -> [C4; 4] {
 
 /// 4×4 transpose: lane j of row r becomes lane r of row j.
 #[inline(always)]
-fn transpose(rows: [V4; 4]) -> [V4; 4] {
+pub(crate) fn transpose(rows: [V4; 4]) -> [V4; 4] {
     let [r0, r1, r2, r3] = rows;
     let (t0, t1) = (r0.shuffle::<0, 4, 1, 5>(r1), r0.shuffle::<2, 6, 3, 7>(r1));
     let (t2, t3) = (r2.shuffle::<0, 4, 1, 5>(r3), r2.shuffle::<2, 6, 3, 7>(r3));
@@ -138,7 +138,7 @@ fn transpose(rows: [V4; 4]) -> [V4; 4] {
 
 /// Six blocks of `length / 4` values, [w1.re | w1.im | w2.re | w2.im | w3.re | w3.im], with
 /// w_k[p] = exp(−2πi·k·p / length). Computed in f64, stored f32.
-fn stage_twiddles(length: usize) -> Vec<f32> {
+pub(crate) fn stage_twiddles(length: usize) -> Vec<f32> {
     let count = length / 4;
     let mut table = vec![0.0; 6 * count];
     for k in 1..4 {
@@ -173,7 +173,7 @@ impl Stage {
 
 /// Stride 1: lanes run over p, so the four outputs of each p are transposed into place.
 #[inline(always)]
-unsafe fn radix4_first<S: Source, D: Sink>(size: usize, twiddles: &[f32], from: &S, to: &mut D) {
+pub(crate) unsafe fn radix4_first<S: Source, D: Sink>(size: usize, twiddles: &[f32], from: &S, to: &mut D) {
     let quarter = size / 4;
     let twiddle = |k: usize, p: usize| C4 {
         re: V4::load(twiddles, 2 * k * quarter + p),
@@ -227,7 +227,7 @@ unsafe fn radix4<S: Source, D: Sink>(size: usize, stride: usize, twiddles: &[f32
 }
 
 #[inline(always)]
-unsafe fn radix2<S: Source, D: Sink>(size: usize, from: &S, to: &mut D) {
+pub(crate) unsafe fn radix2<S: Source, D: Sink>(size: usize, from: &S, to: &mut D) {
     let half = size / 2;
     for q in (0..half).step_by(4) {
         let (a, b) = (from.load(q), from.load(q + half));

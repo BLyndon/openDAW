@@ -5,7 +5,7 @@ import {CI_TARGET} from "../stats.mjs"
 import {barChart, lineChart} from "./charts.mjs"
 import {batchNsFor, browserName, evaluateEnvironment, fetchHost, headerLine, stepOutcome} from "./checks.mjs"
 import {createClient} from "./client.mjs"
-import {GLOSSARY, HINTS, INTRO} from "./copy.mjs"
+import {GLOSSARY, HINTS, INTRO, QUESTION} from "./copy.mjs"
 import {KERNEL, LIBRARY, LIBRARY_LIMIT, overviewHtml, overviewMarkdown, overviewRows} from "./overview.mjs"
 import {buildReport, reportFileName} from "./report.mjs"
 import {createSequence, runAll, runStep, STEPS} from "./sequence.mjs"
@@ -57,7 +57,10 @@ const markdownToHtml = (lines) => {
     return html.join("")
 }
 
-document.getElementById("intro").innerHTML = INTRO.map((paragraph) => `<p>${escape(paragraph)}</p>`).join("")
+const withCode = (text) => escape(text).replace(/`([^`]+)`/g, "<code>$1</code>")
+document.getElementById("question").innerHTML = QUESTION.map((line) => `<p>${escape(line)}</p>`).join("")
+document.getElementById("intro").innerHTML = INTRO.map(([label, lines]) =>
+    `<dt>${escape(label)}</dt><dd>${lines.map((line) => `<div>${withCode(line)}</div>`).join("")}</dd>`).join("")
 document.getElementById("glossary").innerHTML = GLOSSARY.map(([term, explanation]) => `<dt>${escape(term)}</dt><dd>${escape(explanation)}</dd>`).join("")
 document.getElementById("overview-hint").innerHTML = hint(HINTS.overview)
 document.getElementById("steps").replaceChildren()

@@ -33,6 +33,15 @@ test("lineChart: every point carries a hover title, and two or more series get a
     assert.equal(count(svg, /class="legend-item"/g), 2)
 })
 
+test("lineChart: categorical x ticks label the axis and the hover titles", () => {
+    const stages = {name: "N = 1024", slot: 1, points: [[0, 0.9], [1, 0.8], [2, 0.7]]}
+    const svg = lineChart({series: [stages], xLabel: "stage", yLabel: "µs", logX: false, logY: true, xTicks: [[0, "S0"], [1, "O1"], [2, "O2"]]})
+    for (const label of ["S0", "O1", "O2"]) {
+        assert.match(svg, new RegExp(`>${label}</text>`))
+    }
+    assert.match(svg, /<title>N = 1024, O1: 0\.8 µs<\/title>/)
+})
+
 test("barChart: one bar per group and option with its value, gaps between bars", () => {
     const groups = ["Analyser", "Time-stretch", "Convolver"].map((name) => ({name, bars: [
         {name: "rfft", slot: 2, value: 0.8}, {name: "realfft", slot: 5, value: 0.2}]}))

@@ -167,9 +167,41 @@
             overflow-x: auto;
             font-size: 12px;
         }
-        .intro p {
-            margin: 8px 0;
+        .question p {
+            margin: 0;
             color: var(--text-secondary);
+        }
+        .question p:first-child {
+            color: var(--text-primary);
+            font-size: 17px;
+        }
+        .glossary dl, dl.intro {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 16px;
+            font-size: 13px;
+            margin: 8px 0 0;
+        }
+        dl.intro {
+            margin: 16px 0;
+        }
+        .glossary dt, .intro dt {
+            font-weight: 600;
+        }
+        .glossary dd, .intro dd {
+            margin: 0;
+            color: var(--text-secondary);
+        }
+        .intro code {
+            font-size: 12px;
+            background: var(--surface-raised);
+            padding: 0 4px;
+            border-radius: 3px;
+        }
+        @media (max-width: 560px) {
+            dl.intro {
+                grid-template-columns: 1fr;
+            }
         }
         .overview-section h2, h2.part {
             font-size: 17px;
@@ -211,20 +243,6 @@
             font-weight: 600;
             cursor: pointer;
         }
-        .glossary dl {
-            display: grid;
-            grid-template-columns: max-content 1fr;
-            gap: 4px 16px;
-            font-size: 13px;
-            margin: 8px 0 0;
-        }
-        .glossary dt {
-            font-weight: 600;
-        }
-        .glossary dd {
-            margin: 0;
-            color: var(--text-secondary);
-        }
         .hidden {
             display: none;
         }
@@ -233,7 +251,8 @@
 <body>
 <main>
     <h1>fft-bench · Library or own kernel?</h1>
-    <div class="intro" id="intro"></div>
+    <div class="question" id="question"></div>
+    <dl class="intro" id="intro"></dl>
     <div class="environment" id="environment">Environment not checked yet.</div>
     <div class="run-all"><button id="run-all">Run all</button><span>Runs every step in order and stops at the first that fails.</span></div>
     <section class="overview-section">
