@@ -97,3 +97,11 @@ test("lineChart: a reference line is drawn at its value and the axis reaches it"
     const [, y] = svg.match(/<line class="reference"[^>]*y1="([\d.]+)"/)
     assert.ok(Number(y) >= 40, `reference at ${y} lies inside the plot`)
 })
+
+test("lineChart: yMin starts a linear axis above zero, values below it widen the axis", () => {
+    const series = [{name: "a", slot: 1, points: [[256, 0.9], [1024, 1.05]]}]
+    const labels = (svg) => [...svg.matchAll(/text-anchor="end" fill="var\(--text-muted\)" font-size="11">([^<]+)</g)].map((match) => Number(match[1]))
+    assert.equal(Math.min(...labels(lineChart({series, xLabel: "N", yLabel: "r", logX: true, logY: false, yMin: 0.8}))), 0.8)
+    assert.equal(Math.min(...labels(lineChart({series, xLabel: "N", yLabel: "r", logX: true, logY: false, yMin: 0.95}))), 0.9)
+    assert.equal(Math.min(...labels(lineChart({series, xLabel: "N", yLabel: "r", logX: true, logY: false}))), 0)
+})

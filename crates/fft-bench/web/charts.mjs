@@ -24,16 +24,18 @@ const scale = (low, high, log, from, to) => {
     return (value) => from + (map(value) - map(low)) / (map(high) - map(low) || 1) * (to - from)
 }
 
-// Log ticks at powers of `base` inside the data range, linear ticks at round steps from zero.
+// Log ticks at powers of `base` inside the data range, linear ticks at round steps from `low` (zero unless a chart zooms in).
 const ticks = (low, high, log, base) => {
     if (log) {
         const first = Math.floor(Math.log(low) / Math.log(base))
         const last = Math.ceil(Math.log(high) / Math.log(base))
         return Array.from({length: last - first + 1}, (_, index) => base ** (first + index))
     }
-    const step = 10 ** Math.floor(Math.log10(high / LINEAR_TICKS))
-    const niceStep = [1, 2, 5, 10].map((factor) => factor * step).find((candidate) => high / candidate <= LINEAR_TICKS)
-    return Array.from({length: Math.ceil(high / niceStep) + 1}, (_, index) => index * niceStep)
+    const span = high - low
+    const step = 10 ** Math.floor(Math.log10(span / LINEAR_TICKS))
+    const niceStep = [1, 2, 5, 10].map((factor) => factor * step).find((candidate) => span / candidate <= LINEAR_TICKS)
+    const first = Math.floor(low / niceStep)
+    return Array.from({length: Math.ceil(high / niceStep) - first + 1}, (_, index) => Number(((first + index) * niceStep).toPrecision(12)))
 }
 
 // Items flow left to right and wrap into rows; `extra` is the height the rows beyond the first add above the plot.
@@ -74,13 +76,14 @@ const referenceLine = (reference, y) => reference === undefined ? ""
     + `stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="6 4"/>`
     + `<text x="${plotRight}" y="${y(reference.value) - 6}" text-anchor="end" fill="var(--text-secondary)" font-size="11">${escape(reference.label)}</text>`
 
-// `xTicks` ([value, label] pairs) replaces the numeric x-axis, for categories such as the outlook stages.
-export const lineChart = ({series, xLabel, yLabel, logX, logY, reference, xTicks}) => {
+// `xTicks` ([value, label] pairs) replaces the numeric x-axis, for categories such as the outlook stages. `yMin` starts a
+// linear y-axis above zero, for ratios that stay near 1.
+export const lineChart = ({series, xLabel, yLabel, logX, logY, reference, xTicks, yMin = 0}) => {
     const defined = series.flatMap(({points}) => points.filter(([, value]) => value !== undefined))
     const xs = defined.map(([n]) => n)
     const ys = defined.map(([, value]) => value)
     const [xLow, xHigh] = [Math.min(...xs), Math.max(...xs)]
-    const yTicks = ticks(logY ? Math.min(...ys) : 0, Math.max(...ys, reference?.value ?? -Infinity), logY, 10)
+    const yTicks = ticks(logY ? Math.min(...ys) : Math.min(yMin, ...ys), Math.max(...ys, reference?.value ?? -Infinity), logY, 10)
     const x = scale(xLow, xHigh, logX, plotLeft, plotRight)
     const y = scale(yTicks[0], yTicks.at(-1), logY, plotBottom, plotTop)
     const xTitle = (value) => xTicks?.find(([tick]) => tick === value)?.[1] ?? `N = ${value}`
