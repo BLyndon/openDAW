@@ -10,12 +10,14 @@ It is a standalone crate, excluded from the workspace, and changes no production
 
 ## Three ways in
 
-**See the results.** A browser page runs every option and puts all decision criteria on one page.
+**See the results.** A landing page explains the two rounds of optimisation and links three browser pages: the decision
+page runs every option against all decision criteria, the stages page measures each outlook item of the kernel, the
+worklet page compares the Worker timings with the audio thread.
 
 ```sh
 cd crates/fft-bench
 cargo build --release --target wasm32-unknown-unknown
-node web/serve.mjs          # then open http://127.0.0.1:8080/ and press "Run all"
+node web/serve.mjs          # then open http://127.0.0.1:8080/, pick a page and press "Run all"
 ```
 
 **Check that everything is correct** (about 10 s, plus about 30 s for `bits.mjs`):

@@ -148,10 +148,15 @@ any Rust source is newer.
 
 ## JavaScript runners and the browser page
 
-The wasm module is driven from JavaScript twice: by `run.mjs` in Node and by the page in `web/`. Both share
+The wasm module is driven from JavaScript twice: by `run.mjs` in Node and by the pages in `web/`. Both share
 the statistics, the measurements, the Markdown tables and the budget model, so a browser report and
 `node.md` are built by the same code and compare section by section. A third, `bits.mjs`, is a check, not a
 runner: it compares the module's `simd` and `simd-complex` output with the native bits from `examples/bits.rs`.
+
+`serve.mjs` serves four pages: a static landing page at `/` (`index.html`) that explains the two rounds of
+optimisation and links the others, the decision page at `/decision` (`decision.html`, `page.mjs`), the stages page at
+`/stages` (`stages.html`, `stages.mjs` with `stages-copy.mjs`) and the worklet page at `/worklet` (`worklet.html`,
+`worklet.mjs`). The measuring pages share the Worker, the client, the checks, the sequence and the charts below.
 
 **How to read the diagram:** arrow A → B means B uses A (imports it, loads it or is served it).
 
@@ -187,12 +192,26 @@ flowchart LR
 | `sequence.mjs` | the fixed step order: a step runs only after the one before passed; any new result resets every later step |
 | `charts.mjs` | SVG line and bar charts without a library; colours from CSS custom properties |
 | `report.mjs` | the browser run as Markdown in the `node.md` format |
+| `worklet.mjs` | the worklet page: the same options timed in the Worker and in an AudioWorklet, offline and in real time; with `worklet-copy.mjs` for its text |
+| `worklet-processor.mjs` | the `AudioWorkletProcessor`: instantiates the module it is sent, hashes every case (mode `bits`) or runs one scheduled batch per render quantum (mode `timing`) |
+| `worklet-logic.mjs` | shared by processor, Worker and page: block schedule, record layout, calibration, drop rule, FNV-1a digests; no `TextDecoder`, which a worklet lacks |
+| `clock.mjs` | spins `performance.now()` into a `SharedArrayBuffer` for the worklet, as the studio's `HRClockWorker` does |
 
 **Why a Worker, not an AudioWorklet.** An AudioWorklet has no high-resolution clock, and browser timers
 are coarse unless the page is cross-origin isolated (Chrome: 100 µs, isolated 5 µs). A Worker in an
 isolated page has the fine timer and runs the same wasm engine. It is not the audio thread, so a
-scheduling effect specific to that thread would not show; whether that matters is a question for the
-maintainer.
+scheduling effect specific to that thread would not show. The decision and stages pages therefore time in a Worker.
+
+**The worklet page.** It answers whether the audio thread changes the picture. The clock is `clock.mjs`, a Worker
+spinning `performance.now()` into shared memory (the approach of `plans/dsp-load-measurement.md`); the processor
+reads it before and after one batch per render quantum. Per round and option-size job the schedule is: one block
+`setup`, one block calibration (calls per batch for about 25 % of the quantum), then pairs of batches without and with
+the FFT. A pair's difference divided by the calls is one sample, so the cost of reading the clock cancels. Jobs take
+turns within a round; round 0 is warm-up and not counted. A kernel batch whose two clock reads are equal is dropped
+(the clock Worker was descheduled); a batch without the kernel may fit in one tick, so equal reads are valid there.
+Results go into `SharedArrayBuffer`s; the processor never allocates or posts while timing. The module is compiled on
+the main thread and sent as a `WebAssembly.Module` in `processorOptions`, or as bytes where a browser cannot clone a
+module.
 
 **Why steps are timed by difference.** A single step (0.4–24 µs) is near the browser tick. Step k is
 timed as a batch of "preparation + steps 0..k−1" with and without step k, so each step runs on the data

@@ -1,6 +1,7 @@
 // Runs the measurements off the main thread. Requests are answered one at a time, in order, with the same id.
 import {listOptions, listStages, measureStageThroughput, measureSteps, measureThroughput} from "../measure.mjs"
 import {fetchModuleBytes, measureTick, simdSupported} from "./checks.mjs"
+import {digestCases} from "./worklet-logic.mjs"
 
 const now = () => performance.now() * 1e6
 let wasm
@@ -16,7 +17,8 @@ const handlers = {
     },
     throughput: ({option, n, direction, batchNs}) => measureThroughput(wasm, {option, n, direction, now, batchNs}),
     steps: ({option, n, batchNs}) => measureSteps(wasm, {option, n, now, batchNs}),
-    stageThroughput: ({stage, n, direction, batchNs}) => measureStageThroughput(wasm, {stage, n, direction, now, batchNs})
+    stageThroughput: ({stage, n, direction, batchNs}) => measureStageThroughput(wasm, {stage, n, direction, now, batchNs}),
+    digests: () => digestCases(wasm)
 }
 
 self.onmessage = ({data: {id, type, ...request}}) => {

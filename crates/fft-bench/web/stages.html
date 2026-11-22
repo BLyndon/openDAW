@@ -243,6 +243,13 @@
             font-weight: 600;
             cursor: pointer;
         }
+        nav.crumbs {
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        nav.crumbs a {
+            color: var(--accent);
+        }
         .hidden {
             display: none;
         }
@@ -250,11 +257,12 @@
 </head>
 <body>
 <main>
+    <nav class="crumbs"><a href="/">fft-bench</a> · <a href="/decision">Decision page</a> · <a href="/stages">Stages page</a> · <a href="/worklet">Worklet page</a></nav>
     <h1>fft-bench · SIMD kernel stages</h1>
     <div class="question" id="question"></div>
     <dl class="intro" id="intro"></dl>
     <div class="environment" id="environment">Environment not checked yet.</div>
-    <div class="run-all"><button id="run-all">Run all</button><span>Runs every step in order and stops at the first that fails. <a href="/">Decision page</a></span></div>
+    <div class="run-all"><button id="run-all">Run all</button><span>Runs every step in order and stops at the first that fails.</span></div>
     <details class="glossary" open>
         <summary>How to read this page</summary>
         <dl id="glossary"></dl>

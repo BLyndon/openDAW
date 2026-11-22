@@ -22,7 +22,7 @@ its own lockfile and `target/`.
 | Node module tests             | `node --test *.test.mjs web/*.test.mjs`               |
 | Wasm against native bits (≈ 30 s) | `cargo build --release --target wasm32-unknown-unknown`, then `node bits.mjs` |
 | Facts for the page (minutes)  | `node facts.mjs` → `web/facts.json`; run after every code change |
-| Browser page                  | `node web/serve.mjs`, then open `http://127.0.0.1:8080/` in each browser and press **Run all** |
+| Browser pages                 | `node web/serve.mjs`, then open `http://127.0.0.1:8080/` in each browser; on `/decision`, `/stages` and `/worklet` press **Run all** |
 | Binary size and `no_std` check (≈ 30 s) | `size/size.sh`, `size/nostd-check.sh`; `wasm-opt` required (`brew install binaryen`) |
 
 Tests build with `opt-level = 3` (`[profile.test]`): the f64 reference DFT is O(n²) and too slow

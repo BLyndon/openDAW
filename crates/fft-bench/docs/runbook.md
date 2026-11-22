@@ -180,13 +180,25 @@ from the tests and size builds, in a few minutes. Run it after every code change
 the code, so its git hash matches. The page shows a warning when the file is older than the Rust sources.
 
 Open `http://127.0.0.1:8080/` in Chrome, Firefox and Safari, one browser at a time, with the tab in front
-and nothing else running, and press **Run all**. It runs the seven steps in order and stops at the first that
-fails; each step can also be run on its own. The **decision overview** at the top fills in as the steps finish.
-Run Safari by hand: Playwright's WebKit is not Safari. Step 7 downloads `browser-<browser>-<major version>.md`;
-move it to `$RESULTS`.
+and nothing else running. The landing page explains the two rounds of optimisation and links both pages; in each
+browser run them in this order:
 
-The page times in a Worker, not on the audio thread; why is in
-[Architecture](architecture.md#javascript-runners-and-the-browser-page).
+1. **Decision page** (`/decision`): press **Run all**. It runs the seven steps in order and stops at the first
+   that fails; each step can also be run on its own. The **decision overview** at the top fills in as the steps
+   finish. Step 7 downloads `browser-<browser>-<major version>.md`.
+2. **Stages page** (`/stages`): press **Run all**. It times every outlook stage (`S0`, O1–O6, O10, `S0+O1+O4`)
+   forward and inverse for N = 1024–16384 and downloads `stages-<browser>-<major version>.md`.
+3. **Worklet page** (`/worklet`): press **Run all**. It times `rfft`, `realfft`, `simd` and `simd-o1o4` for
+   N = 256, 1024, 4096, 16384 in a Worker and on the audio thread (offline, then about 25 s in real time) and
+   downloads `worklet-<browser>-<major version>.md`. Audio plays silence; leave the output device alone.
+   Expected: bits identical in every case, worklet ÷ Worker close to 1, no underruns (Chrome reports them).
+   Keep the tab visible during the real-time step: a hidden tab may render far slower than real time, and
+   the step then fails with a note instead of reporting those numbers.
+
+Move the three files to `$RESULTS`. Run Safari by hand: Playwright's WebKit is not Safari.
+
+The decision and stages pages time in a Worker; why, and how the worklet page gets a clock on the audio thread, is
+in [Architecture](architecture.md#javascript-runners-and-the-browser-page).
 
 ## 8. Wrap up
 
@@ -196,7 +208,7 @@ The page times in a Worker, not on the audio thread; why is in
    same everywhere and without `-dirty`.
 2. **Compare like with like.** Only compare numbers from the same run and the same platform.
 3. **Keep the raw files.** `$RESULTS` holds `accuracy.md`, `native.txt`, `node.md`, `size.md`,
-   `nostd.md` and one `browser-*.md` per browser. Commit them with the analysis, not with the harness.
+   `nostd.md` and one `browser-*.md` and `stages-*.md` per browser. Commit them with the analysis, not with the harness.
 4. **Note deviations.** Anything that did not look as described above goes next to the numbers.
 
 ## After adding an option
@@ -204,14 +216,14 @@ The page times in a Worker, not on the audio thread; why is in
 When the prototype or another kernel joins the registry (see
 [Adding an option](developer-guide.md#adding-an-option)):
 
-| Rerun                                                            | Why                                                                 |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Steps 2 and 3                                                    | gates and accuracy for the new option                               |
-| Step 5                                                           | its wasm timings and its row in the render budget                   |
-| Step 7                                                           | its timings in the browsers; the page lists every registered option |
-| Step 6, after adding a stub to `size/stubs/` and to both scripts | its size and whether it links `no_std`                              |
-| `node facts.mjs`                                                 | its row in the page's decision overview                             |
-| Step 4                                                           | only if its native numbers matter                                   |
+| Rerun                                                            | Why                                                                          |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Steps 2 and 3                                                    | gates and accuracy for the new option                                        |
+| Step 5                                                           | its wasm timings and its row in the render budget                            |
+| Step 7                                                           | its timings in the browsers; the decision page lists every registered option |
+| Step 6, after adding a stub to `size/stubs/` and to both scripts | its size and whether it links `no_std`                                       |
+| `node facts.mjs`                                                 | its row in the page's decision overview                                      |
+| Step 4                                                           | only if its native numbers matter                                            |
 
 ## Troubleshooting
 

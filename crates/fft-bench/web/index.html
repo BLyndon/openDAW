@@ -3,29 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>fft-bench · Library or own kernel?</title>
+    <title>fft-bench · SIMD FFT</title>
     <style>
         :root {
             color-scheme: light;
             --surface: #fcfcfb;
             --surface-raised: #f3f2ee;
             --border: #e1e0d9;
-            --grid: #e1e0d9;
             --text-primary: #0b0b0b;
             --text-secondary: #52514e;
             --text-muted: #898781;
-            --ok: #008300;
-            --warn: #b26b00;
-            --fail: #c62828;
             --accent: #2a78d6;
-            --series-1: #2a78d6;
-            --series-2: #eb6834;
-            --series-3: #1baf7a;
-            --series-4: #eda100;
-            --series-5: #e87ba4;
-            --series-6: #008300;
-            --series-7: #6250d6;
-            --series-8: #e34948;
         }
         @media (prefers-color-scheme: dark) {
             :root {
@@ -33,22 +21,10 @@
                 --surface: #1a1a19;
                 --surface-raised: #232322;
                 --border: #2c2c2a;
-                --grid: #2c2c2a;
                 --text-primary: #f0efec;
                 --text-secondary: #c3c2b7;
                 --text-muted: #898781;
-                --ok: #0ca30c;
-                --warn: #e0a030;
-                --fail: #e66767;
                 --accent: #3987e5;
-                --series-1: #3987e5;
-                --series-2: #d95926;
-                --series-3: #199e70;
-                --series-4: #c98500;
-                --series-5: #d55181;
-                --series-6: #0ca30c;
-                --series-7: #9085e9;
-                --series-8: #e66767;
             }
         }
         body {
@@ -66,208 +42,209 @@
             font-size: 22px;
             margin: 0 0 4px;
         }
-        .environment {
-            color: var(--text-secondary);
-            font-size: 13px;
-            margin-bottom: 24px;
-        }
-        section {
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-        }
-        section.locked {
-            opacity: 0.5;
-        }
-        .step-head {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .step-head h2 {
+        h2 {
             font-size: 17px;
-            margin: 0;
-            flex: 1;
+            margin: 32px 0 12px;
         }
-        button {
-            font: inherit;
-            padding: 6px 16px;
-            border-radius: 6px;
-            border: 1px solid var(--accent);
-            background: var(--accent);
-            color: #fff;
-            cursor: pointer;
+        h3 {
+            font-size: 15px;
+            margin: 0 0 4px;
         }
-        button:disabled {
-            background: transparent;
-            color: var(--text-muted);
-            border-color: var(--border);
-            cursor: default;
+        p {
+            margin: 4px 0;
         }
-        .run-all {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 16px 0;
-            color: var(--text-secondary);
+        a {
+            color: var(--accent);
         }
-        button.small {
-            padding: 0 8px;
-            font-size: 12px;
-            margin-left: 6px;
-        }
-        .outcome {
-            margin-top: 10px;
-            font-weight: 600;
-        }
-        .outcome.ok { color: var(--ok); }
-        .outcome.warn { color: var(--warn); }
-        .outcome.fail { color: var(--fail); }
-        .outcome.running { color: var(--accent); }
-        .outcome ul {
-            margin: 4px 0 0;
-            font-weight: 400;
-            color: var(--text-secondary);
-        }
-        .results {
-            margin-top: 12px;
-            overflow-x: auto;
-        }
-        .results h4 {
-            margin: 16px 0 6px;
-            font-size: 14px;
-        }
-        .results p {
-            color: var(--text-secondary);
+        code {
             font-size: 13px;
-        }
-        table {
-            border-collapse: collapse;
-            font-size: 13px;
-            font-variant-numeric: tabular-nums;
-        }
-        th, td {
-            border-bottom: 1px solid var(--border);
-            padding: 4px 12px 4px 0;
-            text-align: right;
-            white-space: nowrap;
-        }
-        th:first-child, td:first-child {
-            text-align: left;
-        }
-        svg {
-            width: 100%;
-            height: auto;
-            margin-top: 12px;
-        }
-        details pre {
-            background: var(--surface-raised);
-            padding: 12px;
-            overflow-x: auto;
-            font-size: 12px;
-        }
-        .question p {
-            margin: 0;
-            color: var(--text-secondary);
-        }
-        .question p:first-child {
-            color: var(--text-primary);
-            font-size: 17px;
-        }
-        .glossary dl, dl.intro {
-            display: grid;
-            grid-template-columns: max-content 1fr;
-            gap: 4px 16px;
-            font-size: 13px;
-            margin: 8px 0 0;
-        }
-        dl.intro {
-            margin: 16px 0;
-        }
-        .glossary dt, .intro dt {
-            font-weight: 600;
-        }
-        .glossary dd, .intro dd {
-            margin: 0;
-            color: var(--text-secondary);
-        }
-        .intro code {
-            font-size: 12px;
             background: var(--surface-raised);
             padding: 0 4px;
             border-radius: 3px;
         }
-        @media (max-width: 560px) {
-            dl.intro {
-                grid-template-columns: 1fr;
-            }
+        .lead {
+            color: var(--text-secondary);
         }
-        .overview-section h2, h2.part {
+        .lead strong {
+            color: var(--text-primary);
             font-size: 17px;
-            margin: 0 0 8px;
+            font-weight: 600;
         }
-        h2.part {
-            margin: 24px 0 12px;
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 24px 0 8px;
         }
-        p.hint {
-            color: var(--text-secondary);
+        .flow div {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
             font-size: 13px;
-            margin: 8px 0 4px;
-        }
-        p.explain {
-            margin: 4px 0 0;
             color: var(--text-secondary);
         }
-        p.explain strong {
+        .flow div strong {
+            display: block;
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+        .flow div.target {
+            border-color: var(--accent);
+        }
+        ol.timeline {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            counter-reset: round;
+        }
+        ol.timeline > li {
+            counter-increment: round;
+            position: relative;
+            padding: 0 0 20px 44px;
+            border-left: 2px solid var(--border);
+            margin-left: 14px;
+        }
+        ol.timeline > li:last-child {
+            border-left-color: transparent;
+        }
+        ol.timeline > li::before {
+            content: counter(round);
+            position: absolute;
+            left: -15px;
+            top: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            text-align: center;
+            line-height: 28px;
+        }
+        ol.timeline p {
+            color: var(--text-secondary);
+        }
+        ol.timeline p.result {
             color: var(--text-primary);
             font-weight: 600;
         }
-        table.overview td {
+        .source {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .pages {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        a.page {
+            display: block;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            color: inherit;
+            text-decoration: none;
+        }
+        a.page:hover, a.page:focus-visible {
+            border-color: var(--accent);
+        }
+        a.page h3 {
+            color: var(--accent);
+            font-size: 17px;
+        }
+        a.page p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        table {
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            border-bottom: 1px solid var(--border);
+            padding: 4px 16px 4px 0;
             text-align: left;
-            white-space: normal;
             vertical-align: top;
-            padding-right: 16px;
         }
-        table.overview th {
-            text-align: left;
+        td:last-child {
+            color: var(--text-secondary);
         }
-        table.overview td.pass { color: var(--ok); }
-        table.overview td.fail { color: var(--fail); }
-        table.overview td.pending, table.overview td.source, table.overview td.threshold { color: var(--text-muted); }
-        table.overview td.missing, p.stale { color: var(--warn); }
-        .glossary {
-            margin-bottom: 16px;
-        }
-        .glossary summary {
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .hidden {
-            display: none;
+        @media (max-width: 640px) {
+            .flow, .pages {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 <main>
-    <h1>fft-bench · Library or own kernel?</h1>
-    <div class="question" id="question"></div>
-    <dl class="intro" id="intro"></dl>
-    <div class="environment" id="environment">Environment not checked yet.</div>
-    <div class="run-all"><button id="run-all">Run all</button><span>Runs every step in order and stops at the first that fails.</span></div>
-    <section class="overview-section">
-        <h2>Decision overview</h2>
-        <div id="overview-hint"></div>
-        <p class="stale hidden" id="facts-stale">Facts older than the sources: run node facts.mjs, then reload.</p>
-        <div class="results" id="overview"></div>
-    </section>
-    <details class="glossary" open>
-        <summary>How to read this page</summary>
-        <dl id="glossary"></dl>
-    </details>
-    <h2 class="part">How it was measured</h2>
-    <div id="steps">If this text stays, the page script did not run: serve the page with node web/serve.mjs and open the URL it prints.</div>
+    <h1>fft-bench · A SIMD128 FFT for the engine</h1>
+    <p class="lead"><strong>Should the engine use the library <code>realfft</code> or its own SIMD128 kernel, and how far can the own
+        kernel go?</strong><br>f32, real input, N = 256–16384, WebAssembly. Two pages measure the answer live in this browser.</p>
+    <div class="flow" aria-label="From today's FFT to the comparison">
+        <div><strong>rfft</strong>today's scalar FFT</div>
+        <div><strong>simd</strong>round 1: ten steps</div>
+        <div><strong>S0+O1+O4</strong>round 2: outlook items</div>
+        <div class="target"><strong>vs. realfft</strong>the decision page</div>
+    </div>
+    <h2>How the kernel came about</h2>
+    <ol class="timeline">
+        <li>
+            <h3>Round 1: the prototype <code>simd</code></h3>
+            <p class="result">7.4× faster than today's <code>rfft</code> (lowest of N = 1024–16384, Node, M1), all accuracy
+                gates passed.</p>
+            <p>Five steps on the textbook FFT: real-input trick, radix-4 Stockham, twiddle tables per stage,
+                <code>f32x4</code> butterflies, unchecked vector access.</p>
+            <p class="source">Docs: <code>crates/fft-bench/docs/simd-kernel.md</code></p>
+        </li>
+        <li>
+            <h3>Round 2: outlook items O1–O10</h3>
+            <p class="result">Only O1 and O4 gain reliably: O1 +5–13 % forward, O4 +3–7 % forward and inverse
+                (N = 1024–4096, two Chrome runs).</p>
+            <p>Seven items built as cumulative stages on <code>simd</code>, timed on the <a href="/stages">stages page</a>.</p>
+            <p class="source">Docs: <code>crates/fft-bench/docs/simd-outlook.md</code></p>
+        </li>
+        <li>
+            <h3>Selection: <code>simd-o1o4</code></h3>
+            <p class="result">The own kernel we take forward: 10–19 % faster than <code>simd</code> forward (N = 1024–8192,
+                Node), same bits, 1.7 kB more.</p>
+            <p>Kept: faster at N = 1024–4096 in both runs, same bits. Left out: O2 (changes bits), O3 (slower at small N),
+                O5 (large N only), O10 (noise).</p>
+        </li>
+        <li>
+            <h3>Comparison: <code>realfft</code></h3>
+            <p class="result"><code>realfft</code> takes 1.5–1.9× as long as <code>simd-o1o4</code> at every size (Node),
+                adds 172.6 kB and does not link <code>no_std</code>.</p>
+            <p>The <a href="/decision">decision page</a> measures all options live in this browser; it recommends no
+                option.</p>
+        </li>
+    </ol>
+    <h2>The pages</h2>
+    <div class="pages">
+        <a class="page" href="/decision">
+            <h3>Decision page →</h3>
+            <p>Library or own kernel? All options against all criteria, with the decision overview at the top.</p>
+            <p>Downloads <code>browser-&lt;browser&gt;-&lt;version&gt;.md</code>.</p>
+        </a>
+        <a class="page" href="/stages">
+            <h3>Stages page →</h3>
+            <p>What each outlook item adds: time per transform and speed-up against <code>S0</code>, per stage and size.</p>
+            <p>Downloads <code>stages-&lt;browser&gt;-&lt;version&gt;.md</code>.</p>
+        </a>
+        <a class="page" href="/worklet">
+            <h3>Worklet page →</h3>
+            <p>Does an FFT cost the same on the audio thread? Worker against AudioWorklet, offline and in real time.</p>
+            <p>Downloads <code>worklet-&lt;browser&gt;-&lt;version&gt;.md</code>.</p>
+        </a>
+    </div>
+    <p class="source">On each page, press <strong>Run all</strong> with the tab in front and nothing else running. A full
+        measurement run is described in <code>crates/fft-bench/docs/runbook.md</code>, step 7.</p>
+    <h2>Further reading</h2>
+    <table>
+        <tr><td><code>analysis/README.md</code></td><td>results so far and the open questions for the maintainer</td></tr>
+        <tr><td><code>crates/fft-bench/docs/testing-concept.md</code></td><td>which question each measurement answers</td></tr>
+        <tr><td><code>future-plans/simd-fft.md</code></td><td>the plan: requirements and thresholds</td></tr>
+    </table>
 </main>
-<script type="module" src="/web/page.mjs"></script>
 </body>
 </html>

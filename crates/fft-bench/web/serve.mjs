@@ -1,4 +1,4 @@
-// Serves the browser page cross-origin isolated: node web/serve.mjs [--port 8080], after the wasm build.
+// Serves the browser pages cross-origin isolated: node web/serve.mjs [--port 8080], after the wasm build.
 import fs from "node:fs"
 import http from "node:http"
 import path from "node:path"
@@ -16,7 +16,9 @@ const routes = (root, modulePath) => {
     const pageFiles = fs.readdirSync(web).filter((name) => !name.endsWith(".test.mjs") && name !== "serve.mjs")
     return new Map([
         ["/", path.join(web, "index.html")],
+        ["/decision", path.join(web, "decision.html")],
         ["/stages", path.join(web, "stages.html")],
+        ["/worklet", path.join(web, "worklet.html")],
         ["/web/facts.json", path.join(web, "facts.json")],
         ["/fft_bench.wasm", modulePath],
         ...SHARED_MODULES.map((name) => [`/${name}`, path.join(root, name)]),

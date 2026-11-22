@@ -12,7 +12,9 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), "fft-bench-serve-"))
 fs.mkdirSync(path.join(root, "web"))
 fs.mkdirSync(path.join(root, "src"))
 fs.writeFileSync(path.join(root, "web", "index.html"), "<!doctype html>")
+fs.writeFileSync(path.join(root, "web", "decision.html"), "<!doctype html><title>decision</title>")
 fs.writeFileSync(path.join(root, "web", "stages.html"), "<!doctype html><title>stages</title>")
+fs.writeFileSync(path.join(root, "web", "worklet.html"), "<!doctype html><title>worklet</title>")
 fs.writeFileSync(path.join(root, "run.mjs"), "secret")
 fs.writeFileSync(path.join(root, "src", "lib.rs"), "")
 const modulePath = path.join(root, "fft_bench.wasm")
@@ -47,11 +49,23 @@ test("index and module are served with their content types", async () => {
     assert.equal((await get("/fft_bench.wasm")).headers["content-type"], "application/wasm")
 })
 
-test("the stages page is served at /stages", async () => {
-    const stages = await get("/stages")
-    assert.equal(stages.status, 200)
-    assert.match(stages.headers["content-type"], /^text\/html/)
-    assert.match(stages.body, /stages/)
+test("the decision, stages and worklet pages are served at /decision, /stages and /worklet", async () => {
+    for (const name of ["decision", "stages", "worklet"]) {
+        const page = await get(`/${name}`)
+        assert.equal(page.status, 200)
+        assert.match(page.headers["content-type"], /^text\/html/)
+        assert.match(page.body, new RegExp(name))
+    }
+})
+
+test("the shipped landing page links every page, and each page links back", () => {
+    const read = (name) => fs.readFileSync(new URL(`./${name}`, import.meta.url), "utf8")
+    assert.match(read("index.html"), /href="\/decision"/)
+    assert.match(read("index.html"), /href="\/stages"/)
+    assert.match(read("index.html"), /href="\/worklet"/)
+    for (const name of ["decision.html", "stages.html", "worklet.html"]) {
+        assert.match(read(name), /<nav class="crumbs"><a href="\/">/, name)
+    }
 })
 
 test("paths outside the allowlist are not served", async () => {
@@ -86,7 +100,7 @@ test("a module older than a source file is stale", () => {
 })
 
 test("the shipped pages say how to serve them when their script cannot run", () => {
-    for (const name of ["index.html", "stages.html"]) {
+    for (const name of ["decision.html", "stages.html", "worklet.html"]) {
         const page = fs.readFileSync(new URL(`./${name}`, import.meta.url), "utf8")
         assert.match(page, /<div id="steps">[^<]*node web\/serve\.mjs[^<]*<\/div>/, name)
     }
